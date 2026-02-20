@@ -1,0 +1,15 @@
+{
+  "name": "piznac-toys",
+  "version": "1.0.0",
+  "description": "Vintage toy collection catalog",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npx ng serve --proxy-config proxy.conf.json",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "cd client && npx ng build",
+    "start": "cd server && node server.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

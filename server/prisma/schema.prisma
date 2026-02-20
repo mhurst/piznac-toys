@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Admin {
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  password String
+}
+
+model ToyLine {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  coverImage String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  series    Series[]
+  tags      Tag[]
+  figures   Figure[]
+}
+
+model Series {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String
+  toyLineId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  toyLine   ToyLine  @relation(fields: [toyLineId], references: [id], onDelete: Cascade)
+  figures   Figure[]
+
+  @@unique([toyLineId, slug])
+}
+
+model Tag {
+  id        Int         @id @default(autoincrement())
+  name      String
+  toyLineId Int
+  createdAt DateTime    @default(now())
+  toyLine   ToyLine     @relation(fields: [toyLineId], references: [id], onDelete: Cascade)
+  figures   FigureTag[]
+
+  @@unique([toyLineId, name])
+}
+
+model Figure {
+  id          Int         @id @default(autoincrement())
+  name        String
+  year        Int?
+  notes       String?
+  owned       Boolean     @default(false)
+  toyLineId   Int
+  seriesId    Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  toyLine     ToyLine     @relation(fields: [toyLineId], references: [id], onDelete: Cascade)
+  series      Series      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  tags        FigureTag[]
+  accessories Accessory[]
+  photos      Photo[]
+}
+
+model FigureTag {
+  figureId Int
+  tagId    Int
+  figure   Figure @relation(fields: [figureId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([figureId, tagId])
+}
+
+model Accessory {
+  id       Int     @id @default(autoincrement())
+  name     String
+  owned    Boolean @default(false)
+  figureId Int
+  figure   Figure  @relation(fields: [figureId], references: [id], onDelete: Cascade)
+}
+
+model Photo {
+  id        Int     @id @default(autoincrement())
+  filename  String
+  isPrimary Boolean @default(false)
+  figureId  Int
+  figure    Figure  @relation(fields: [figureId], references: [id], onDelete: Cascade)
+}
