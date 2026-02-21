@@ -1,23 +1,41 @@
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'piznac-toys-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 const prisma = new PrismaClient();
 
-async function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  path: '/',
+};
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
+function getToken(req) {
+  // Prefer httpOnly cookie, fall back to Authorization header for API clients
+  if (req.cookies && req.cookies.token) {
+    return req.cookies.token;
   }
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1];
+  }
+  return null;
+}
 
-  const token = authHeader.split(' ')[1];
+async function requireAuth(req, res, next) {
+  const token = getToken(req);
+
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
     if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'Authentication required' });
     }
     if (!user.active) {
       return res.status(403).json({ error: 'Account is disabled' });
@@ -26,7 +44,7 @@ async function requireAuth(req, res, next) {
     req.userRole = user.role;
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Authentication required' });
   }
 }
 
@@ -38,15 +56,13 @@ function requireAdmin(req, res, next) {
 }
 
 async function optionalAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
+  const token = getToken(req);
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     req.userId = null;
     req.userRole = null;
     return next();
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -65,4 +81,4 @@ async function optionalAuth(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireAdmin, optionalAuth, JWT_SECRET };
+module.exports = { requireAuth, requireAdmin, optionalAuth, JWT_SECRET, COOKIE_OPTIONS };

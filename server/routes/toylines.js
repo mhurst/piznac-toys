@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { upload, setPrefix, optimizeImages } = require('../middleware/upload');
+const { parseId, logError } = require('../middleware/validate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
     });
     res.json(toylines);
   } catch (err) {
-    console.error('Error fetching toylines:', err);
+    logError('Error fetching toylines', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -43,7 +44,7 @@ router.get('/:slug', async (req, res) => {
 
     res.json(toyline);
   } catch (err) {
-    console.error('Error fetching toyline:', err);
+    logError('Error fetching toyline', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -68,7 +69,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'Toyline already exists' });
     }
-    console.error('Error creating toyline:', err);
+    logError('Error creating toyline', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -76,6 +77,9 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 // PUT /api/toylines/:id — update toyline (admin)
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
     const { name, coverImage } = req.body;
     const data = {};
 
@@ -88,7 +92,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     }
 
     const toyline = await prisma.toyLine.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       data,
     });
 
@@ -97,7 +101,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Toyline not found' });
     }
-    console.error('Error updating toyline:', err);
+    logError('Error updating toyline', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -105,15 +109,18 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 // DELETE /api/toylines/:id — delete toyline (admin, cascades)
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
     await prisma.toyLine.delete({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
     });
     res.json({ success: true });
   } catch (err) {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Toyline not found' });
     }
-    console.error('Error deleting toyline:', err);
+    logError('Error deleting toyline', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -121,7 +128,8 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
 // POST /api/toylines/:id/cover — upload cover image (admin)
 router.post('/:id/cover', requireAuth, requireAdmin, setPrefix('toyline'), upload.single('cover'), optimizeImages, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
@@ -143,7 +151,7 @@ router.post('/:id/cover', requireAuth, requireAdmin, setPrefix('toyline'), uploa
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Toyline not found' });
     }
-    console.error('Error uploading cover:', err);
+    logError('Error uploading cover', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

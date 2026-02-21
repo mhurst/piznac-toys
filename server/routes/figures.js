@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth, requireAdmin, optionalAuth } = require('../middleware/auth');
+const { parseId, logError } = require('../middleware/validate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -72,7 +73,7 @@ router.get('/', optionalAuth, async (req, res) => {
       totalPages: Math.ceil(total / take),
     });
   } catch (err) {
-    console.error('Error fetching figures:', err);
+    logError('Error fetching figures', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -99,8 +100,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
       };
     }
 
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
     const figure = await prisma.figure.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       include,
     });
 
@@ -124,7 +128,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Error fetching figure:', err);
+    logError('Error fetching figure', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -163,7 +167,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       tags: figure.tags.map((ft) => ft.tag),
     });
   } catch (err) {
-    console.error('Error creating figure:', err);
+    logError('Error creating figure', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -171,7 +175,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 // PUT /api/figures/:id — update figure (admin only)
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
 
     const existing = await prisma.figure.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Figure not found' });
@@ -215,7 +220,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Figure not found' });
     }
-    console.error('Error updating figure:', err);
+    logError('Error updating figure', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -223,8 +228,11 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 // DELETE /api/figures/:id — delete figure (admin only, cascades)
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
     const figure = await prisma.figure.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       include: { photos: true },
     });
 
@@ -242,10 +250,10 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
       }
     }
 
-    await prisma.figure.delete({ where: { id: parseInt(req.params.id) } });
+    await prisma.figure.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
-    console.error('Error deleting figure:', err);
+    logError('Error deleting figure', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -253,7 +261,8 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
 // POST /api/figures/:id/accessories — add accessory (admin only)
 router.post('/:id/accessories', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const figureId = parseInt(req.params.id);
+    const figureId = parseId(req.params.id);
+    if (!figureId) return res.status(400).json({ error: 'Invalid ID' });
     const figure = await prisma.figure.findUnique({ where: { id: figureId } });
     if (!figure) return res.status(404).json({ error: 'Figure not found' });
 
@@ -272,7 +281,7 @@ router.post('/:id/accessories', requireAuth, requireAdmin, async (req, res) => {
 
     res.status(201).json(accessory);
   } catch (err) {
-    console.error('Error creating accessory:', err);
+    logError('Error creating accessory', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -280,9 +289,10 @@ router.post('/:id/accessories', requireAuth, requireAdmin, async (req, res) => {
 // PUT /api/accessories/:id — update accessory (admin only)
 router.put('/accessories/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const accessory = await prisma.accessory.findUnique({
-      where: { id: parseInt(req.params.id) },
-    });
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
+    const accessory = await prisma.accessory.findUnique({ where: { id } });
     if (!accessory) return res.status(404).json({ error: 'Accessory not found' });
 
     const { name } = req.body;
@@ -291,7 +301,7 @@ router.put('/accessories/:id', requireAuth, requireAdmin, async (req, res) => {
     if (name !== undefined) data.name = name;
 
     const updated = await prisma.accessory.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       data,
     });
 
@@ -300,7 +310,7 @@ router.put('/accessories/:id', requireAuth, requireAdmin, async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Accessory not found' });
     }
-    console.error('Error updating accessory:', err);
+    logError('Error updating accessory', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -308,20 +318,19 @@ router.put('/accessories/:id', requireAuth, requireAdmin, async (req, res) => {
 // DELETE /api/accessories/:id — delete accessory (admin only)
 router.delete('/accessories/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const accessory = await prisma.accessory.findUnique({
-      where: { id: parseInt(req.params.id) },
-    });
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
+    const accessory = await prisma.accessory.findUnique({ where: { id } });
     if (!accessory) return res.status(404).json({ error: 'Accessory not found' });
 
-    await prisma.accessory.delete({
-      where: { id: parseInt(req.params.id) },
-    });
+    await prisma.accessory.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Accessory not found' });
     }
-    console.error('Error deleting accessory:', err);
+    logError('Error deleting accessory', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

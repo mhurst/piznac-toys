@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, catchError, of } from 'rxjs';
 
 export interface UserInfo {
   id: number;
@@ -10,20 +10,10 @@ export interface UserInfo {
   avatar: string | null;
 }
 
-interface AuthResponse {
-  token: string;
-  id: number;
-  email: string;
-  name: string | null;
-  role: string;
-  avatar: string | null;
-}
-
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private tokenKey = 'piznac-toys-token';
   private userKey = 'piznac-toys-user';
-  private loggedIn$ = new BehaviorSubject<boolean>(this.hasToken());
+  private loggedIn$ = new BehaviorSubject<boolean>(this.hasUser());
   private user$ = new BehaviorSubject<UserInfo | null>(this.loadUser());
 
   constructor(private http: HttpClient) {}
@@ -52,55 +42,65 @@ export class AuthService {
     return this.user$.value?.id ?? null;
   }
 
-  get token(): string | null {
-    return localStorage.getItem(this.tokenKey);
-  }
-
-  login(email: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>('/api/auth/login', { email, password }).pipe(
-      tap((res) => {
-        this.setSession(res);
+  login(email: string, password: string): Observable<UserInfo> {
+    return this.http.post<UserInfo>('/api/auth/login', { email, password }).pipe(
+      tap((user) => {
+        this.setUser(user);
       })
     );
   }
 
-  register(email: string, password: string, name: string, inviteCode: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>('/api/auth/register', { email, password, name, inviteCode }).pipe(
-      tap((res) => {
-        this.setSession(res);
+  register(email: string, password: string, name: string, inviteCode: string): Observable<UserInfo> {
+    return this.http.post<UserInfo>('/api/auth/register', { email, password, name, inviteCode }).pipe(
+      tap((user) => {
+        this.setUser(user);
       })
     );
   }
 
   logout(): void {
-    localStorage.removeItem(this.tokenKey);
+    this.http.post('/api/auth/logout', {}).subscribe();
     localStorage.removeItem(this.userKey);
     this.loggedIn$.next(false);
     this.user$.next(null);
   }
 
-  updateUser(user: Partial<UserInfo>, token?: string): void {
+  /** Check session on app startup — validates httpOnly cookie is still valid */
+  checkSession(): Observable<UserInfo | null> {
+    return this.http.get<UserInfo>('/api/auth/profile').pipe(
+      tap((user) => {
+        this.setUser(user);
+      }),
+      catchError(() => {
+        this.clearUser();
+        return of(null);
+      })
+    );
+  }
+
+  updateUser(user: Partial<UserInfo>): void {
     const current = this.user$.value;
     if (current) {
       const updated = { ...current, ...user };
       localStorage.setItem(this.userKey, JSON.stringify(updated));
       this.user$.next(updated);
     }
-    if (token) {
-      localStorage.setItem(this.tokenKey, token);
-    }
   }
 
-  private setSession(res: AuthResponse): void {
-    localStorage.setItem(this.tokenKey, res.token);
-    const user: UserInfo = { id: res.id, email: res.email, name: res.name, role: res.role, avatar: res.avatar };
+  private setUser(user: UserInfo): void {
     localStorage.setItem(this.userKey, JSON.stringify(user));
     this.loggedIn$.next(true);
     this.user$.next(user);
   }
 
-  private hasToken(): boolean {
-    return !!localStorage.getItem(this.tokenKey);
+  private clearUser(): void {
+    localStorage.removeItem(this.userKey);
+    this.loggedIn$.next(false);
+    this.user$.next(null);
+  }
+
+  private hasUser(): boolean {
+    return !!localStorage.getItem(this.userKey);
   }
 
   private loadUser(): UserInfo | null {

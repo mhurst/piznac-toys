@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { upload, setPrefix, optimizeImages } = require('../middleware/upload');
+const { parseId, logError } = require('../middleware/validate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -13,7 +14,8 @@ const prisma = new PrismaClient();
 // Regular user: personal photos (userId=req.userId), must have figure in collection, never primary
 router.post('/upload/:figureId', requireAuth, setPrefix('figure'), upload.array('photos', 10), optimizeImages, async (req, res) => {
   try {
-    const figureId = parseInt(req.params.figureId);
+    const figureId = parseId(req.params.figureId);
+    if (!figureId) return res.status(400).json({ error: 'Invalid ID' });
 
     const figure = await prisma.figure.findUnique({
       where: { id: figureId },
@@ -66,7 +68,7 @@ router.post('/upload/:figureId', requireAuth, setPrefix('figure'), upload.array(
 
     res.status(201).json(photos);
   } catch (err) {
-    console.error('Error uploading photos:', err);
+    logError('Error uploading photos', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -74,7 +76,8 @@ router.post('/upload/:figureId', requireAuth, setPrefix('figure'), upload.array(
 // PUT /api/photos/:id/primary — set as primary photo (admin only, catalog photos only)
 router.put('/:id/primary', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const photoId = parseInt(req.params.id);
+    const photoId = parseId(req.params.id);
+    if (!photoId) return res.status(400).json({ error: 'Invalid ID' });
 
     const photo = await prisma.photo.findUnique({
       where: { id: photoId },
@@ -99,7 +102,7 @@ router.put('/:id/primary', requireAuth, requireAdmin, async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    console.error('Error setting primary photo:', err);
+    logError('Error setting primary photo', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -109,8 +112,11 @@ router.put('/:id/primary', requireAuth, requireAdmin, async (req, res) => {
 // Users can delete their own photos (userId=req.userId)
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
     const photo = await prisma.photo.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
     });
 
     if (!photo) {
@@ -147,7 +153,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
     await prisma.photo.delete({ where: { id: photo.id } });
     res.json({ success: true });
   } catch (err) {
-    console.error('Error deleting photo:', err);
+    logError('Error deleting photo', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

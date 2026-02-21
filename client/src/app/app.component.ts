@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -64,8 +64,15 @@ import { Router } from '@angular/router';
     .avatar-link { display: flex; align-items: center; }
   `],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   constructor(public auth: AuthService, private router: Router) {}
+
+  ngOnInit(): void {
+    // Validate session cookie on app startup
+    if (this.auth.isLoggedIn) {
+      this.auth.checkSession().subscribe();
+    }
+  }
 
   logout(): void {
     this.auth.logout();

@@ -4,6 +4,7 @@ const fs = require('fs');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { upload, setPrefix, optimizeImagesAt, UPLOADS_DIR } = require('../middleware/upload');
+const { parseId, logError } = require('../middleware/validate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -27,7 +28,7 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
     });
     res.json(users);
   } catch (err) {
-    console.error('List users error:', err);
+    logError('List users error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -37,7 +38,8 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
 // GET /api/users/:id/needs — toylines with missing accessories
 router.get('/:id/needs', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -64,7 +66,7 @@ router.get('/:id/needs', async (req, res) => {
 
     res.json(Object.values(toylineMap));
   } catch (err) {
-    console.error('Get user needs error:', err);
+    logError('Get user needs error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -72,7 +74,8 @@ router.get('/:id/needs', async (req, res) => {
 // GET /api/users/:id/needs/:toylineSlug — series with missing counts
 router.get('/:id/needs/:toylineSlug', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
     const { toylineSlug } = req.params;
 
     const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
@@ -104,7 +107,7 @@ router.get('/:id/needs/:toylineSlug', async (req, res) => {
       series: Object.values(seriesMap),
     });
   } catch (err) {
-    console.error('Get user needs by toyline error:', err);
+    logError('Get user needs by toyline error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -112,7 +115,8 @@ router.get('/:id/needs/:toylineSlug', async (req, res) => {
 // GET /api/users/:id/needs/:toylineSlug/:seriesSlug — figures with missing accessories
 router.get('/:id/needs/:toylineSlug/:seriesSlug', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
     const { toylineSlug, seriesSlug } = req.params;
 
     const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
@@ -153,7 +157,7 @@ router.get('/:id/needs/:toylineSlug/:seriesSlug', async (req, res) => {
       figures: result,
     });
   } catch (err) {
-    console.error('Get user needs by series error:', err);
+    logError('Get user needs by series error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -163,7 +167,8 @@ router.get('/:id/needs/:toylineSlug/:seriesSlug', async (req, res) => {
 // GET /api/users/:id/for-sale — toylines with for-sale items
 router.get('/:id/for-sale', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -192,7 +197,7 @@ router.get('/:id/for-sale', async (req, res) => {
 
     res.json(Object.values(toylineMap));
   } catch (err) {
-    console.error('Get user for-sale error:', err);
+    logError('Get user for-sale error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -200,7 +205,8 @@ router.get('/:id/for-sale', async (req, res) => {
 // GET /api/users/:id/for-sale/:toylineSlug — series with for-sale counts
 router.get('/:id/for-sale/:toylineSlug', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
     const { toylineSlug } = req.params;
 
     const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
@@ -234,7 +240,7 @@ router.get('/:id/for-sale/:toylineSlug', async (req, res) => {
       series: Object.values(seriesMap),
     });
   } catch (err) {
-    console.error('Get user for-sale by toyline error:', err);
+    logError('Get user for-sale by toyline error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -242,7 +248,8 @@ router.get('/:id/for-sale/:toylineSlug', async (req, res) => {
 // GET /api/users/:id/for-sale/:toylineSlug/:seriesSlug — figures with for-sale details
 router.get('/:id/for-sale/:toylineSlug/:seriesSlug', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
     const { toylineSlug, seriesSlug } = req.params;
 
     const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
@@ -290,7 +297,7 @@ router.get('/:id/for-sale/:toylineSlug/:seriesSlug', async (req, res) => {
       figures: result,
     });
   } catch (err) {
-    console.error('Get user for-sale by series error:', err);
+    logError('Get user for-sale by series error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -298,7 +305,8 @@ router.get('/:id/for-sale/:toylineSlug/:seriesSlug', async (req, res) => {
 // GET /api/users/:id/collection — public collection
 router.get('/:id/collection', async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
     const { toylineId, search, page = '1', limit = '20' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -349,7 +357,7 @@ router.get('/:id/collection', async (req, res) => {
       totalPages: Math.ceil(total / take),
     });
   } catch (err) {
-    console.error('Get user collection error:', err);
+    logError('Get user collection error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -357,8 +365,11 @@ router.get('/:id/collection', async (req, res) => {
 // GET /api/users/:id — public profile
 router.get('/:id', async (req, res) => {
   try {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -371,7 +382,7 @@ router.get('/:id', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (err) {
-    console.error('Get user profile error:', err);
+    logError('Get user profile error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -380,7 +391,8 @@ router.get('/:id', async (req, res) => {
 router.put('/:id/role', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { role } = req.body;
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
 
     if (!['ADMIN', 'MEMBER'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
@@ -403,7 +415,7 @@ router.put('/:id/role', requireAuth, requireAdmin, async (req, res) => {
     res.json(user);
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'User not found' });
-    console.error('Update role error:', err);
+    logError('Update role error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -412,7 +424,8 @@ router.put('/:id/role', requireAuth, requireAdmin, async (req, res) => {
 router.put('/:id/status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { active } = req.body;
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
 
     if (typeof active !== 'boolean') {
       return res.status(400).json({ error: 'active must be a boolean' });
@@ -426,7 +439,7 @@ router.put('/:id/status', requireAuth, requireAdmin, async (req, res) => {
     res.json(user);
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'User not found' });
-    console.error('Update status error:', err);
+    logError('Update status error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -434,7 +447,8 @@ router.put('/:id/status', requireAuth, requireAdmin, async (req, res) => {
 // DELETE /api/users/:id — delete user (admin only)
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
 
     if (userId === req.userId) {
       return res.status(400).json({ error: 'Cannot delete yourself' });
@@ -452,7 +466,7 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     await prisma.user.delete({ where: { id: userId } });
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete user error:', err);
+    logError('Delete user error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -477,7 +491,7 @@ router.post('/avatar', requireAuth, setPrefix('avatar'), upload.single('avatar')
 
     res.json({ avatar: updated.avatar });
   } catch (err) {
-    console.error('Upload avatar error:', err);
+    logError('Upload avatar error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -498,7 +512,7 @@ router.delete('/avatar', requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete avatar error:', err);
+    logError('Delete avatar error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -520,7 +534,7 @@ router.put('/bio', requireAuth, async (req, res) => {
 
     res.json({ bio: updated.bio });
   } catch (err) {
-    console.error('Update bio error:', err);
+    logError('Update bio error', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

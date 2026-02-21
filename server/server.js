@@ -1,6 +1,15 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const path = require('path');
+
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set.');
+  process.exit(1);
+}
 
 const authRoutes = require('./routes/auth');
 const toylineRoutes = require('./routes/toylines');
@@ -14,11 +23,45 @@ const collectionRoutes = require('./routes/collection');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+// Trust proxy for Railway (needed for rate limiting behind reverse proxy)
+app.set('trust proxy', 1);
 
-// Serve uploaded photos
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Security headers via helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// CORS — in production, Angular is served from same origin so CORS isn't needed.
+// In dev, the Angular proxy handles it. This config is a safety net.
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:4200'];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
+app.use(cookieParser());
+app.use(express.json({ limit: '1mb' }));
+
+// Serve uploaded photos with cache headers
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1d',
+  setHeaders: (res) => {
+    res.set('X-Content-Type-Options', 'nosniff');
+  },
+}));
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -55,7 +98,6 @@ app.get('/api/stats', optionalAuth, async (req, res) => {
         prisma.userAccessory.count({ where: { userId: req.userId } }),
       ]);
 
-      // Total accessories for figures in user's collection
       const totalCollectionAccessories = await prisma.accessory.count({
         where: {
           figure: {
@@ -75,7 +117,7 @@ app.get('/api/stats', optionalAuth, async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Error fetching stats:', err);
+    console.error('Error fetching stats:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

@@ -2,8 +2,12 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
+const { logError } = require('./validate');
 
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+const ALLOWED_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -12,18 +16,24 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const prefix = req.uploadPrefix || 'file';
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
+    // Only allow whitelisted extensions (double-checked here after fileFilter)
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return cb(new Error('Invalid file extension'), false);
+    }
     cb(null, `${prefix}-${uniqueSuffix}${ext}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
   const ext = path.extname(file.originalname).toLowerCase();
-  if (allowed.includes(ext)) {
+  const mimeOk = ALLOWED_MIMETYPES.includes(file.mimetype);
+  const extOk = ALLOWED_EXTENSIONS.includes(ext);
+
+  if (mimeOk && extOk) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed'), false);
+    cb(new Error('Only image files (jpg, png, gif, webp) are allowed'), false);
   }
 };
 
@@ -41,9 +51,16 @@ function setPrefix(prefix) {
   };
 }
 
+function cleanupFiles(files) {
+  for (const file of files) {
+    try {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    } catch (_) { /* best effort */ }
+  }
+}
+
 // Post-upload middleware: optimize images for web and archive originals
 async function optimizeImages(req, res, next) {
-  // Handle both upload.single() (req.file) and upload.array() (req.files)
   const files = req.files || (req.file ? [req.file] : []);
   if (files.length === 0) return next();
 
@@ -53,27 +70,24 @@ async function optimizeImages(req, res, next) {
       const webpFilename = file.filename.replace(/\.\w+$/, '.webp');
       const webpPath = path.join(UPLOADS_DIR, webpFilename);
 
-      // Read into buffer so the file handle is released
       const buffer = fs.readFileSync(originalPath);
 
-      // Resize + convert to WebP for web use
       await sharp(buffer)
         .rotate()
         .resize(1200, null, { withoutEnlargement: true })
         .webp({ quality: 80 })
         .toFile(webpPath);
 
-      // Remove the raw upload
       fs.unlinkSync(originalPath);
 
-      // Update file info so downstream code uses the webp version
       file.filename = webpFilename;
       file.path = webpPath;
     }
     next();
   } catch (err) {
-    console.error('optimizeImages error:', err);
-    res.status(500).json({ error: 'Image processing failed', details: err.message });
+    cleanupFiles(files);
+    logError('optimizeImages error', err);
+    res.status(500).json({ error: 'Image processing failed' });
   }
 }
 
@@ -104,8 +118,9 @@ function optimizeImagesAt(maxWidth) {
       }
       next();
     } catch (err) {
-      console.error('optimizeImagesAt error:', err);
-      res.status(500).json({ error: 'Image processing failed', details: err.message });
+      cleanupFiles(files);
+      logError('optimizeImagesAt error', err);
+      res.status(500).json({ error: 'Image processing failed' });
     }
   };
 }

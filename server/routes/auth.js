@@ -2,13 +2,58 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const { PrismaClient } = require('@prisma/client');
-const { JWT_SECRET, requireAuth, requireAdmin } = require('../middleware/auth');
+const { JWT_SECRET, COOKIE_OPTIONS, requireAuth, requireAdmin } = require('../middleware/auth');
+const { parseId } = require('../middleware/validate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-router.post('/login', async (req, res) => {
+const BCRYPT_ROUNDS = 12;
+
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Password validation — enforce on new passwords only (register, change, reset)
+function validatePassword(password) {
+  if (!password || password.length < 12) {
+    return 'Password must be at least 12 characters';
+  }
+  if (!/[a-z]/.test(password)) {
+    return 'Password must contain a lowercase letter';
+  }
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must contain an uppercase letter';
+  }
+  if (!/\d/.test(password)) {
+    return 'Password must contain a number';
+  }
+  if (!/[^a-zA-Z0-9]/.test(password)) {
+    return 'Password must contain a special character';
+  }
+  return null;
+}
+
+function setTokenCookie(res, token) {
+  res.cookie('token', token, COOKIE_OPTIONS);
+}
+
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -33,16 +78,17 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    setTokenCookie(res, token);
 
-    res.json({ token, id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar });
+    res.json({ id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('Login error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 // POST /api/auth/register — register with invite code
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const { email, password, name, inviteCode } = req.body;
 
@@ -50,8 +96,9 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email, password, and invite code are required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
     const invite = await prisma.invite.findUnique({ where: { code: inviteCode } });
@@ -72,7 +119,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Invite code is for a different email' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const user = await prisma.user.create({
       data: {
@@ -88,15 +135,22 @@ router.post('/register', async (req, res) => {
     });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    setTokenCookie(res, token);
 
-    res.status(201).json({ token, id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar });
+    res.status(201).json({ id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar });
   } catch (err) {
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'Email already in use' });
     }
-    console.error('Register error:', err);
+    console.error('Register error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// POST /api/auth/logout — clear auth cookie
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', { path: '/' });
+  res.json({ success: true });
 });
 
 // GET /api/auth/profile — get current user info
@@ -106,7 +160,7 @@ router.get('/profile', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar, bio: user.bio });
   } catch (err) {
-    console.error('Profile error:', err);
+    console.error('Profile error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -139,10 +193,11 @@ router.put('/profile', requireAuth, async (req, res) => {
     }
 
     if (newPassword) {
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      const passwordError = validatePassword(newPassword);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
       }
-      data.password = await bcrypt.hash(newPassword, 10);
+      data.password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     }
 
     if (Object.keys(data).length === 0) {
@@ -155,13 +210,14 @@ router.put('/profile', requireAuth, async (req, res) => {
     });
 
     const token = jwt.sign({ userId: updated.id }, JWT_SECRET, { expiresIn: '24h' });
+    setTokenCookie(res, token);
 
-    res.json({ message: 'Profile updated', email: updated.email, name: updated.name, token });
+    res.json({ message: 'Profile updated', email: updated.email, name: updated.name });
   } catch (err) {
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'Email already in use' });
     }
-    console.error('Profile update error:', err);
+    console.error('Profile update error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -171,7 +227,7 @@ router.post('/invites', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { email } = req.body;
 
-    const code = crypto.randomBytes(16).toString('hex');
+    const code = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     const invite = await prisma.invite.create({
@@ -185,7 +241,7 @@ router.post('/invites', requireAuth, requireAdmin, async (req, res) => {
 
     res.status(201).json(invite);
   } catch (err) {
-    console.error('Create invite error:', err);
+    console.error('Create invite error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -201,7 +257,7 @@ router.get('/invites', requireAuth, requireAdmin, async (req, res) => {
     });
     res.json(invites);
   } catch (err) {
-    console.error('List invites error:', err);
+    console.error('List invites error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -209,20 +265,23 @@ router.get('/invites', requireAuth, requireAdmin, async (req, res) => {
 // DELETE /api/auth/invites/:id — delete unused invite (admin only)
 router.delete('/invites/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const invite = await prisma.invite.findUnique({ where: { id: parseInt(req.params.id) } });
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
+    const invite = await prisma.invite.findUnique({ where: { id } });
     if (!invite) return res.status(404).json({ error: 'Invite not found' });
     if (invite.usedById) return res.status(400).json({ error: 'Cannot delete a used invite' });
 
     await prisma.invite.delete({ where: { id: invite.id } });
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete invite error:', err);
+    console.error('Delete invite error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 // POST /api/auth/forgot-password — request password reset email
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', strictLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -238,7 +297,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Generate token
     const rawToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = await bcrypt.hash(rawToken, 10);
+    const hashedToken = await bcrypt.hash(rawToken, BCRYPT_ROUNDS);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await prisma.passwordReset.create({
@@ -270,13 +329,13 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
   } catch (err) {
-    console.error('Forgot password error:', err);
+    console.error('Forgot password error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 // POST /api/auth/reset-password — reset password with token
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', strictLimiter, async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
 
@@ -284,8 +343,9 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Email, token, and new password are required' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -317,7 +377,7 @@ router.post('/reset-password', async (req, res) => {
     }
 
     // Update password and mark token as used
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword },
@@ -330,7 +390,7 @@ router.post('/reset-password', async (req, res) => {
 
     res.json({ message: 'Password has been reset successfully' });
   } catch (err) {
-    console.error('Reset password error:', err);
+    console.error('Reset password error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

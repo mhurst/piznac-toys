@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth } = require('../middleware/auth');
+const { parseId, logError } = require('../middleware/validate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -70,7 +71,7 @@ router.get('/', requireAuth, async (req, res) => {
       totalPages: Math.ceil(total / take),
     });
   } catch (err) {
-    console.error('Error fetching collection:', err);
+    logError('Error fetching collection', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -100,7 +101,7 @@ router.get('/stats', requireAuth, async (req, res) => {
         : 0,
     });
   } catch (err) {
-    console.error('Error fetching collection stats:', err);
+    logError('Error fetching collection stats', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -108,7 +109,8 @@ router.get('/stats', requireAuth, async (req, res) => {
 // POST /api/collection/figures/:figureId — add figure to collection
 router.post('/figures/:figureId', requireAuth, async (req, res) => {
   try {
-    const figureId = parseInt(req.params.figureId);
+    const figureId = parseId(req.params.figureId);
+    if (!figureId) return res.status(400).json({ error: 'Invalid ID' });
 
     const figure = await prisma.figure.findUnique({ where: { id: figureId } });
     if (!figure) return res.status(404).json({ error: 'Figure not found' });
@@ -126,7 +128,7 @@ router.post('/figures/:figureId', requireAuth, async (req, res) => {
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'Figure already in collection' });
     }
-    console.error('Error adding to collection:', err);
+    logError('Error adding to collection', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -134,7 +136,8 @@ router.post('/figures/:figureId', requireAuth, async (req, res) => {
 // DELETE /api/collection/figures/:figureId — remove figure from collection
 router.delete('/figures/:figureId', requireAuth, async (req, res) => {
   try {
-    const figureId = parseInt(req.params.figureId);
+    const figureId = parseId(req.params.figureId);
+    if (!figureId) return res.status(400).json({ error: 'Invalid ID' });
 
     // Delete related UserAccessory records for this figure's accessories
     const accessories = await prisma.accessory.findMany({
@@ -166,7 +169,7 @@ router.delete('/figures/:figureId', requireAuth, async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Figure not in collection' });
     }
-    console.error('Error removing from collection:', err);
+    logError('Error removing from collection', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -174,7 +177,8 @@ router.delete('/figures/:figureId', requireAuth, async (req, res) => {
 // PUT /api/collection/figures/:figureId — update personal notes
 router.put('/figures/:figureId', requireAuth, async (req, res) => {
   try {
-    const figureId = parseInt(req.params.figureId);
+    const figureId = parseId(req.params.figureId);
+    if (!figureId) return res.status(400).json({ error: 'Invalid ID' });
 
     const updated = await prisma.userFigure.update({
       where: {
@@ -191,7 +195,7 @@ router.put('/figures/:figureId', requireAuth, async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Figure not in collection' });
     }
-    console.error('Error updating collection notes:', err);
+    logError('Error updating collection notes', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -199,7 +203,8 @@ router.put('/figures/:figureId', requireAuth, async (req, res) => {
 // POST /api/collection/accessories/:accessoryId — mark accessory as owned
 router.post('/accessories/:accessoryId', requireAuth, async (req, res) => {
   try {
-    const accessoryId = parseInt(req.params.accessoryId);
+    const accessoryId = parseId(req.params.accessoryId);
+    if (!accessoryId) return res.status(400).json({ error: 'Invalid ID' });
 
     const accessory = await prisma.accessory.findUnique({
       where: { id: accessoryId },
@@ -234,7 +239,7 @@ router.post('/accessories/:accessoryId', requireAuth, async (req, res) => {
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'Accessory already marked as owned' });
     }
-    console.error('Error marking accessory owned:', err);
+    logError('Error marking accessory owned', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -242,7 +247,8 @@ router.post('/accessories/:accessoryId', requireAuth, async (req, res) => {
 // DELETE /api/collection/accessories/:accessoryId — unmark accessory as owned
 router.delete('/accessories/:accessoryId', requireAuth, async (req, res) => {
   try {
-    const accessoryId = parseInt(req.params.accessoryId);
+    const accessoryId = parseId(req.params.accessoryId);
+    if (!accessoryId) return res.status(400).json({ error: 'Invalid ID' });
 
     await prisma.userAccessory.delete({
       where: {
@@ -258,7 +264,7 @@ router.delete('/accessories/:accessoryId', requireAuth, async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Accessory not marked as owned' });
     }
-    console.error('Error unmarking accessory:', err);
+    logError('Error unmarking accessory', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -266,7 +272,8 @@ router.delete('/accessories/:accessoryId', requireAuth, async (req, res) => {
 // PUT /api/collection/figures/:figureId/for-sale — toggle figure for sale
 router.put('/figures/:figureId/for-sale', requireAuth, async (req, res) => {
   try {
-    const figureId = parseInt(req.params.figureId);
+    const figureId = parseId(req.params.figureId);
+    if (!figureId) return res.status(400).json({ error: 'Invalid ID' });
     const { forSale } = req.body;
 
     if (typeof forSale !== 'boolean') {
@@ -288,7 +295,7 @@ router.put('/figures/:figureId/for-sale', requireAuth, async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Figure not in collection' });
     }
-    console.error('Error toggling figure for sale:', err);
+    logError('Error toggling figure for sale', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -296,7 +303,8 @@ router.put('/figures/:figureId/for-sale', requireAuth, async (req, res) => {
 // PUT /api/collection/accessories/:accessoryId/for-sale — toggle accessory for sale
 router.put('/accessories/:accessoryId/for-sale', requireAuth, async (req, res) => {
   try {
-    const accessoryId = parseInt(req.params.accessoryId);
+    const accessoryId = parseId(req.params.accessoryId);
+    if (!accessoryId) return res.status(400).json({ error: 'Invalid ID' });
     const { forSale } = req.body;
 
     if (typeof forSale !== 'boolean') {
@@ -318,7 +326,7 @@ router.put('/accessories/:accessoryId/for-sale', requireAuth, async (req, res) =
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Accessory not owned' });
     }
-    console.error('Error toggling accessory for sale:', err);
+    logError('Error toggling accessory for sale', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

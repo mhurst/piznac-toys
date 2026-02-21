@@ -233,14 +233,14 @@ export class ProfileComponent implements OnInit {
     const body: any = { email: this.email, name: this.name, currentPassword: this.currentPassword };
     if (this.newPassword) body.newPassword = this.newPassword;
 
-    this.http.put<{ message: string; email: string; name: string | null; token?: string }>('/api/auth/profile', body).subscribe({
+    this.http.put<{ message: string; email: string; name: string | null }>('/api/auth/profile', body).subscribe({
       next: (res) => {
         this.saving = false;
         this.message = res.message;
         this.isError = false;
         this.currentPassword = '';
         this.newPassword = '';
-        this.auth.updateUser({ email: res.email, name: res.name }, res.token);
+        this.auth.updateUser({ email: res.email, name: res.name });
       },
       error: (err) => {
         this.saving = false;
