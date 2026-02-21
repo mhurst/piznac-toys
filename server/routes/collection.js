@@ -263,4 +263,64 @@ router.delete('/accessories/:accessoryId', requireAuth, async (req, res) => {
   }
 });
 
+// PUT /api/collection/figures/:figureId/for-sale — toggle figure for sale
+router.put('/figures/:figureId/for-sale', requireAuth, async (req, res) => {
+  try {
+    const figureId = parseInt(req.params.figureId);
+    const { forSale } = req.body;
+
+    if (typeof forSale !== 'boolean') {
+      return res.status(400).json({ error: 'forSale must be a boolean' });
+    }
+
+    const updated = await prisma.userFigure.update({
+      where: {
+        userId_figureId: {
+          userId: req.userId,
+          figureId,
+        },
+      },
+      data: { forSale },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Figure not in collection' });
+    }
+    console.error('Error toggling figure for sale:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/collection/accessories/:accessoryId/for-sale — toggle accessory for sale
+router.put('/accessories/:accessoryId/for-sale', requireAuth, async (req, res) => {
+  try {
+    const accessoryId = parseInt(req.params.accessoryId);
+    const { forSale } = req.body;
+
+    if (typeof forSale !== 'boolean') {
+      return res.status(400).json({ error: 'forSale must be a boolean' });
+    }
+
+    const updated = await prisma.userAccessory.update({
+      where: {
+        userId_accessoryId: {
+          userId: req.userId,
+          accessoryId,
+        },
+      },
+      data: { forSale },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Accessory not owned' });
+    }
+    console.error('Error toggling accessory for sale:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

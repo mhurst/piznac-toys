@@ -32,6 +32,269 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// === NEEDS (missing accessories) drill-down ===
+
+// GET /api/users/:id/needs — toylines with missing accessories
+router.get('/:id/needs', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        collectors: { some: { userId } },
+        accessories: { some: { userStatuses: { none: { userId } } } },
+      },
+      include: { toyLine: true },
+    });
+
+    const toylineMap = {};
+    for (const f of figures) {
+      if (!toylineMap[f.toyLineId]) {
+        toylineMap[f.toyLineId] = {
+          name: f.toyLine.name,
+          slug: f.toyLine.slug,
+          coverImage: f.toyLine.coverImage,
+          itemCount: 0,
+        };
+      }
+      toylineMap[f.toyLineId].itemCount++;
+    }
+
+    res.json(Object.values(toylineMap));
+  } catch (err) {
+    console.error('Get user needs error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/users/:id/needs/:toylineSlug — series with missing counts
+router.get('/:id/needs/:toylineSlug', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { toylineSlug } = req.params;
+
+    const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
+    if (!toyline) return res.status(404).json({ error: 'Toyline not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        toyLineId: toyline.id,
+        collectors: { some: { userId } },
+        accessories: { some: { userStatuses: { none: { userId } } } },
+      },
+      include: { series: true },
+    });
+
+    const seriesMap = {};
+    for (const f of figures) {
+      if (!seriesMap[f.seriesId]) {
+        seriesMap[f.seriesId] = {
+          name: f.series.name,
+          slug: f.series.slug,
+          itemCount: 0,
+        };
+      }
+      seriesMap[f.seriesId].itemCount++;
+    }
+
+    res.json({
+      toyline: { name: toyline.name, slug: toyline.slug },
+      series: Object.values(seriesMap),
+    });
+  } catch (err) {
+    console.error('Get user needs by toyline error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/users/:id/needs/:toylineSlug/:seriesSlug — figures with missing accessories
+router.get('/:id/needs/:toylineSlug/:seriesSlug', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { toylineSlug, seriesSlug } = req.params;
+
+    const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
+    if (!toyline) return res.status(404).json({ error: 'Toyline not found' });
+
+    const series = await prisma.series.findUnique({
+      where: { toyLineId_slug: { toyLineId: toyline.id, slug: seriesSlug } },
+    });
+    if (!series) return res.status(404).json({ error: 'Series not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        toyLineId: toyline.id,
+        seriesId: series.id,
+        collectors: { some: { userId } },
+        accessories: { some: { userStatuses: { none: { userId } } } },
+      },
+      orderBy: { name: 'asc' },
+      include: {
+        photos: { where: { isPrimary: true }, take: 1 },
+        accessories: {
+          where: { userStatuses: { none: { userId } } },
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    const result = figures.map((f) => ({
+      id: f.id,
+      name: f.name,
+      primaryPhoto: f.photos[0] || null,
+      missingAccessories: f.accessories,
+    }));
+
+    res.json({
+      toyline: { name: toyline.name, slug: toyline.slug },
+      series: { name: series.name, slug: series.slug },
+      figures: result,
+    });
+  } catch (err) {
+    console.error('Get user needs by series error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// === FOR SALE/TRADE drill-down ===
+
+// GET /api/users/:id/for-sale — toylines with for-sale items
+router.get('/:id/for-sale', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        OR: [
+          { collectors: { some: { userId, forSale: true } } },
+          { accessories: { some: { userStatuses: { some: { userId, forSale: true } } } } },
+        ],
+      },
+      include: { toyLine: true },
+    });
+
+    const toylineMap = {};
+    for (const f of figures) {
+      if (!toylineMap[f.toyLineId]) {
+        toylineMap[f.toyLineId] = {
+          name: f.toyLine.name,
+          slug: f.toyLine.slug,
+          coverImage: f.toyLine.coverImage,
+          itemCount: 0,
+        };
+      }
+      toylineMap[f.toyLineId].itemCount++;
+    }
+
+    res.json(Object.values(toylineMap));
+  } catch (err) {
+    console.error('Get user for-sale error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/users/:id/for-sale/:toylineSlug — series with for-sale counts
+router.get('/:id/for-sale/:toylineSlug', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { toylineSlug } = req.params;
+
+    const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
+    if (!toyline) return res.status(404).json({ error: 'Toyline not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        toyLineId: toyline.id,
+        OR: [
+          { collectors: { some: { userId, forSale: true } } },
+          { accessories: { some: { userStatuses: { some: { userId, forSale: true } } } } },
+        ],
+      },
+      include: { series: true },
+    });
+
+    const seriesMap = {};
+    for (const f of figures) {
+      if (!seriesMap[f.seriesId]) {
+        seriesMap[f.seriesId] = {
+          name: f.series.name,
+          slug: f.series.slug,
+          itemCount: 0,
+        };
+      }
+      seriesMap[f.seriesId].itemCount++;
+    }
+
+    res.json({
+      toyline: { name: toyline.name, slug: toyline.slug },
+      series: Object.values(seriesMap),
+    });
+  } catch (err) {
+    console.error('Get user for-sale by toyline error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/users/:id/for-sale/:toylineSlug/:seriesSlug — figures with for-sale details
+router.get('/:id/for-sale/:toylineSlug/:seriesSlug', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { toylineSlug, seriesSlug } = req.params;
+
+    const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
+    if (!toyline) return res.status(404).json({ error: 'Toyline not found' });
+
+    const series = await prisma.series.findUnique({
+      where: { toyLineId_slug: { toyLineId: toyline.id, slug: seriesSlug } },
+    });
+    if (!series) return res.status(404).json({ error: 'Series not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        toyLineId: toyline.id,
+        seriesId: series.id,
+        OR: [
+          { collectors: { some: { userId, forSale: true } } },
+          { accessories: { some: { userStatuses: { some: { userId, forSale: true } } } } },
+        ],
+      },
+      orderBy: { name: 'asc' },
+      include: {
+        photos: { where: { isPrimary: true }, take: 1 },
+        collectors: { where: { userId }, select: { forSale: true } },
+        accessories: {
+          include: {
+            userStatuses: { where: { userId, forSale: true } },
+          },
+        },
+      },
+    });
+
+    const result = figures.map((f) => ({
+      id: f.id,
+      name: f.name,
+      primaryPhoto: f.photos[0] || null,
+      figureForSale: f.collectors[0]?.forSale || false,
+      forSaleAccessories: f.accessories
+        .filter((a) => a.userStatuses.length > 0)
+        .map((a) => ({ id: a.id, name: a.name })),
+    }));
+
+    res.json({
+      toyline: { name: toyline.name, slug: toyline.slug },
+      series: { name: series.name, slug: series.slug },
+      figures: result,
+    });
+  } catch (err) {
+    console.error('Get user for-sale by series error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/users/:id/collection — public collection
 router.get('/:id/collection', async (req, res) => {
   try {

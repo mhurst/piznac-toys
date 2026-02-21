@@ -104,6 +104,11 @@ import { AuthService } from '../../core/auth.service';
                   <button mat-raised-button color="warn" (click)="removeFromCollection()">
                     <mat-icon>remove_circle</mat-icon> Remove from Collection
                   </button>
+                  <label class="for-sale-toggle">
+                    <mat-checkbox [checked]="figure.forSale" (change)="toggleFigureForSale()">
+                      For Sale / Trade
+                    </mat-checkbox>
+                  </label>
                 } @else {
                   <button mat-raised-button color="primary" (click)="addToCollection()">
                     <mat-icon>add_circle</mat-icon> Add to Collection
@@ -149,6 +154,11 @@ import { AuthService } from '../../core/auth.service';
                         </mat-icon>
                       }
                       <span [class.not-owned]="!acc.owned">{{ acc.name }}</span>
+                      @if (auth.isLoggedIn && figure.inCollection && acc.owned) {
+                        <mat-checkbox [checked]="acc.forSale" (change)="toggleAccessoryForSale(acc)" class="acc-for-sale">
+                          For Sale
+                        </mat-checkbox>
+                      }
                       @if (auth.isAdmin) {
                         <button mat-icon-button class="delete-acc-btn" (click)="deleteAccessory(acc)">
                           <mat-icon>close</mat-icon>
@@ -254,7 +264,9 @@ import { AuthService } from '../../core/auth.service';
       .series { color: #1565C0; font-weight: 600; }
       .year { color: #777; }
     }
-    .collection-actions { margin-bottom: 16px; }
+    .collection-actions { margin-bottom: 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .for-sale-toggle { font-size: 0.85rem; }
+    .acc-for-sale { margin-left: auto; font-size: 0.8rem; }
     .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
     .notes {
       margin-bottom: 24px;
@@ -371,6 +383,21 @@ export class FigureDetailComponent implements OnInit {
   deleteAccessory(acc: any): void {
     this.api.deleteAccessory(acc.id).subscribe(() => {
       this.figure!.accessories = this.figure!.accessories.filter((a) => a.id !== acc.id);
+    });
+  }
+
+  toggleFigureForSale(): void {
+    if (!this.figure) return;
+    const newVal = !this.figure.forSale;
+    this.api.toggleFigureForSale(this.figure.id, newVal).subscribe(() => {
+      this.figure!.forSale = newVal;
+    });
+  }
+
+  toggleAccessoryForSale(acc: any): void {
+    const newVal = !acc.forSale;
+    this.api.toggleAccessoryForSale(acc.id, newVal).subscribe(() => {
+      acc.forSale = newVal;
     });
   }
 

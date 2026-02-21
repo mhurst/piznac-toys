@@ -16,6 +16,36 @@ export const routes: Routes = [
     loadComponent: () => import('./public/figure-detail/figure-detail.component').then((m) => m.FigureDetailComponent),
   },
   {
+    path: 'user/:id/needs',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'needs' },
+  },
+  {
+    path: 'user/:id/needs/:toylineSlug',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'needs' },
+  },
+  {
+    path: 'user/:id/needs/:toylineSlug/:seriesSlug',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'needs' },
+  },
+  {
+    path: 'user/:id/for-sale',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'for-sale' },
+  },
+  {
+    path: 'user/:id/for-sale/:toylineSlug',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'for-sale' },
+  },
+  {
+    path: 'user/:id/for-sale/:toylineSlug/:seriesSlug',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'for-sale' },
+  },
+  {
     path: 'user/:id',
     loadComponent: () => import('./public/user-profile/user-profile.component').then((m) => m.UserProfileComponent),
   },

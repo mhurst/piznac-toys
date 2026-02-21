@@ -120,6 +120,7 @@ model UserFigure {
   userId    Int
   figureId  Int
   notes     String?
+  forSale   Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   figure    Figure   @relation(fields: [figureId], references: [id], onDelete: Cascade)
@@ -129,6 +130,7 @@ model UserFigure {
 model UserAccessory {
   userId      Int
   accessoryId Int
+  forSale     Boolean   @default(false)
   createdAt   DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessory   Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)

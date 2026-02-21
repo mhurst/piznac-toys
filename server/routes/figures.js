@@ -112,9 +112,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
       ...figure,
       tags: figure.tags.map((ft) => ft.tag),
       inCollection: req.userId ? (figure.collectors && figure.collectors.length > 0) : false,
+      forSale: req.userId ? (figure.collectors?.[0]?.forSale || false) : false,
       accessories: figure.accessories.map((a) => ({
         ...a,
         owned: req.userId && a.userStatuses ? a.userStatuses.length > 0 : false,
+        forSale: req.userId && a.userStatuses ? (a.userStatuses[0]?.forSale || false) : false,
         userStatuses: undefined,
       })),
       collectors: undefined,

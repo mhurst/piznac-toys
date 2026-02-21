@@ -18,6 +18,8 @@ import { Router } from '@angular/router';
       <a mat-button routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
       @if (auth.isLoggedIn$ | async) {
         <a mat-button routerLink="/admin/collection" routerLinkActive="active">My Collection</a>
+        <a mat-button [routerLink]="['/user', auth.userId, 'needs']">What I Need</a>
+        <a mat-button [routerLink]="['/user', auth.userId, 'for-sale']">For Sale / Trade</a>
         @if (auth.isAdmin) {
           <a mat-button routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Admin</a>
         }

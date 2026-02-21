@@ -42,6 +42,7 @@ export interface Figure {
   ownedAccessoryCount?: number;
   inCollection?: boolean;
   collectionNotes?: string | null;
+  forSale?: boolean;
 }
 
 export interface Accessory {
@@ -49,6 +50,7 @@ export interface Accessory {
   name: string;
   figureId: number;
   owned?: boolean;
+  forSale?: boolean;
 }
 
 export interface Photo {
@@ -110,6 +112,34 @@ export interface UserFigure {
   figureId: number;
   notes: string | null;
   createdAt: string;
+}
+
+export interface DrillDownToyline {
+  name: string;
+  slug: string;
+  coverImage: string | null;
+  itemCount: number;
+}
+
+export interface DrillDownSeries {
+  name: string;
+  slug: string;
+  itemCount: number;
+}
+
+export interface NeedsFigure {
+  id: number;
+  name: string;
+  primaryPhoto: Photo | null;
+  missingAccessories: { id: number; name: string }[];
+}
+
+export interface ForSaleFigure {
+  id: number;
+  name: string;
+  primaryPhoto: Photo | null;
+  figureForSale: boolean;
+  forSaleAccessories: { id: number; name: string }[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -351,5 +381,40 @@ export class ApiService {
 
   resetPassword(email: string, token: string, newPassword: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>('/api/auth/reset-password', { email, token, newPassword });
+  }
+
+  // Needs (missing accessories) drill-down
+  getUserNeeds(userId: number): Observable<DrillDownToyline[]> {
+    return this.http.get<DrillDownToyline[]>(`/api/users/${userId}/needs`);
+  }
+
+  getUserNeedsByToyline(userId: number, slug: string): Observable<{ toyline: { name: string; slug: string }; series: DrillDownSeries[] }> {
+    return this.http.get<{ toyline: { name: string; slug: string }; series: DrillDownSeries[] }>(`/api/users/${userId}/needs/${slug}`);
+  }
+
+  getUserNeedsBySeries(userId: number, tlSlug: string, sSlug: string): Observable<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: NeedsFigure[] }> {
+    return this.http.get<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: NeedsFigure[] }>(`/api/users/${userId}/needs/${tlSlug}/${sSlug}`);
+  }
+
+  // For Sale/Trade drill-down
+  getUserForSale(userId: number): Observable<DrillDownToyline[]> {
+    return this.http.get<DrillDownToyline[]>(`/api/users/${userId}/for-sale`);
+  }
+
+  getUserForSaleByToyline(userId: number, slug: string): Observable<{ toyline: { name: string; slug: string }; series: DrillDownSeries[] }> {
+    return this.http.get<{ toyline: { name: string; slug: string }; series: DrillDownSeries[] }>(`/api/users/${userId}/for-sale/${slug}`);
+  }
+
+  getUserForSaleBySeries(userId: number, tlSlug: string, sSlug: string): Observable<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: ForSaleFigure[] }> {
+    return this.http.get<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: ForSaleFigure[] }>(`/api/users/${userId}/for-sale/${tlSlug}/${sSlug}`);
+  }
+
+  // For Sale toggles
+  toggleFigureForSale(figureId: number, forSale: boolean): Observable<any> {
+    return this.http.put(`/api/collection/figures/${figureId}/for-sale`, { forSale });
+  }
+
+  toggleAccessoryForSale(accessoryId: number, forSale: boolean): Observable<any> {
+    return this.http.put(`/api/collection/accessories/${accessoryId}/for-sale`, { forSale });
   }
 }
