@@ -17,7 +17,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     if (toylineId) figureWhere.toyLineId = parseInt(toylineId);
     if (seriesId) figureWhere.seriesId = parseInt(seriesId);
-    if (search) figureWhere.name = { contains: search };
+    if (search) figureWhere.name = { contains: search, mode: 'insensitive' };
 
     if (Object.keys(figureWhere).length > 0) {
       where.figure = figureWhere;
@@ -35,7 +35,7 @@ router.get('/', requireAuth, async (req, res) => {
               series: { select: { name: true } },
               toyLine: { select: { name: true, slug: true } },
               tags: { include: { tag: true } },
-              photos: { where: { isPrimary: true }, take: 1 },
+              photos: { orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }] },
               accessories: {
                 include: {
                   userStatuses: { where: { userId: req.userId } },
@@ -51,7 +51,7 @@ router.get('/', requireAuth, async (req, res) => {
     const figures = items.map((uf) => ({
       ...uf.figure,
       tags: uf.figure.tags.map((ft) => ft.tag),
-      primaryPhoto: uf.figure.photos[0] || null,
+      primaryPhoto: uf.figure.photos.find((p) => p.isPrimary) || uf.figure.photos.find((p) => p.userId === null) || uf.figure.photos[0] || null,
       accessoryCount: uf.figure.accessories.length,
       ownedAccessoryCount: uf.figure.accessories.filter((a) => a.userStatuses.length > 0).length,
       inCollection: true,

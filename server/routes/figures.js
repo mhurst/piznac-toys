@@ -17,7 +17,7 @@ router.get('/', optionalAuth, async (req, res) => {
     if (toylineId) where.toyLineId = parseInt(toylineId);
     if (seriesId) where.seriesId = parseInt(seriesId);
     if (search) {
-      where.name = { contains: search };
+      where.name = { contains: search, mode: 'insensitive' };
     }
     if (tagIds) {
       const ids = tagIds.split(',').map(Number);

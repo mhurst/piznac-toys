@@ -125,9 +125,16 @@ import { AuthService } from '../../core/auth.service';
                 <p>{{ figure.notes }}</p>
               </div>
             }
-            @if (figure.accessories.length > 0) {
-              <div class="accessories">
-                <h3>Accessories ({{ ownedCount }}/{{ figure.accessories.length }})</h3>
+            <div class="accessories">
+              <h3>
+                Accessories
+                @if (figure.accessories.length > 0 && figure.inCollection) {
+                  ({{ ownedCount }}/{{ figure.accessories.length }})
+                } @else if (figure.accessories.length > 0) {
+                  ({{ figure.accessories.length }})
+                }
+              </h3>
+              @if (figure.accessories.length > 0) {
                 <mat-list>
                   @for (acc of figure.accessories; track acc.id) {
                     <mat-list-item>
@@ -142,11 +149,29 @@ import { AuthService } from '../../core/auth.service';
                         </mat-icon>
                       }
                       <span [class.not-owned]="!acc.owned">{{ acc.name }}</span>
+                      @if (auth.isAdmin) {
+                        <button mat-icon-button class="delete-acc-btn" (click)="deleteAccessory(acc)">
+                          <mat-icon>close</mat-icon>
+                        </button>
+                      }
                     </mat-list-item>
                   }
                 </mat-list>
-              </div>
-            }
+              } @else {
+                <p class="no-accessories">No accessories added yet.</p>
+              }
+              @if (auth.isAdmin) {
+                <div class="add-accessory">
+                  <mat-form-field appearance="outline" class="acc-input">
+                    <mat-label>Add accessory</mat-label>
+                    <input matInput [(ngModel)]="newAccessoryName" (keyup.enter)="addAccessory()" placeholder="e.g. Sword, Shield...">
+                  </mat-form-field>
+                  <button mat-stroked-button (click)="addAccessory()" [disabled]="!newAccessoryName.trim()">
+                    <mat-icon>add</mat-icon> Add
+                  </button>
+                </div>
+              }
+            </div>
           </div>
         </div>
       }
@@ -252,6 +277,7 @@ export class FigureDetailComponent implements OnInit {
   selectedPhoto: Photo | null = null;
   uploading = false;
   uploadToCatalog = false;
+  newAccessoryName = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -331,6 +357,21 @@ export class FigureDetailComponent implements OnInit {
         },
       });
     }
+  }
+
+  addAccessory(): void {
+    const name = this.newAccessoryName.trim();
+    if (!name || !this.figure) return;
+    this.api.addAccessory(this.figure.id, name).subscribe((acc) => {
+      this.figure!.accessories.push({ ...acc, owned: false });
+      this.newAccessoryName = '';
+    });
+  }
+
+  deleteAccessory(acc: any): void {
+    this.api.deleteAccessory(acc.id).subscribe(() => {
+      this.figure!.accessories = this.figure!.accessories.filter((a) => a.id !== acc.id);
+    });
   }
 
   deleteUserPhoto(photo: Photo): void {

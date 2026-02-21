@@ -47,7 +47,7 @@ router.get('/:id/collection', async (req, res) => {
     const figureWhere = {};
 
     if (toylineId) figureWhere.toyLineId = parseInt(toylineId);
-    if (search) figureWhere.name = { contains: search };
+    if (search) figureWhere.name = { contains: search, mode: 'insensitive' };
 
     if (Object.keys(figureWhere).length > 0) {
       where.figure = figureWhere;
