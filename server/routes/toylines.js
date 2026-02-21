@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const slugify = require('slugify');
 const path = require('path');
 const fs = require('fs');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { upload, setPrefix, optimizeImages } = require('../middleware/upload');
 
 const router = express.Router();
@@ -49,7 +49,7 @@ router.get('/:slug', async (req, res) => {
 });
 
 // POST /api/toylines — create toyline (admin)
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -74,7 +74,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // PUT /api/toylines/:id — update toyline (admin)
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name, coverImage } = req.body;
     const data = {};
@@ -103,7 +103,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/toylines/:id — delete toyline (admin, cascades)
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     await prisma.toyLine.delete({
       where: { id: parseInt(req.params.id) },
@@ -119,7 +119,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/toylines/:id/cover — upload cover image (admin)
-router.post('/:id/cover', requireAuth, setPrefix('toyline'), upload.single('cover'), optimizeImages, async (req, res) => {
+router.post('/:id/cover', requireAuth, requireAdmin, setPrefix('toyline'), upload.single('cover'), optimizeImages, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (!req.file) {

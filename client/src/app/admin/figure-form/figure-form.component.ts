@@ -8,7 +8,6 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDividerModule } from '@angular/material/divider';
 import { ApiService, ToyLine, Series, Tag, Figure, Accessory, Photo } from '../../core/api.service';
 
@@ -17,7 +16,7 @@ import { ApiService, ToyLine, Series, Tag, Figure, Accessory, Photo } from '../.
   standalone: true,
   imports: [
     RouterLink, FormsModule, MatCardModule, MatFormFieldModule, MatInputModule,
-    MatSelectModule, MatButtonModule, MatIconModule, MatChipsModule, MatCheckboxModule, MatDividerModule,
+    MatSelectModule, MatButtonModule, MatIconModule, MatChipsModule, MatDividerModule,
   ],
   template: `
     <div class="page-container">
@@ -54,8 +53,6 @@ import { ApiService, ToyLine, Series, Tag, Figure, Accessory, Photo } from '../.
               </mat-select>
             </mat-form-field>
           </div>
-
-          <mat-checkbox [(ngModel)]="owned" class="owned-checkbox">I have this figure</mat-checkbox>
 
           @if (availableTags.length > 0) {
             <div class="tags-section">
@@ -103,9 +100,7 @@ import { ApiService, ToyLine, Series, Tag, Figure, Accessory, Photo } from '../.
             <div class="accessory-list">
               @for (acc of accessories; track acc.id) {
                 <div class="accessory-row">
-                  <mat-checkbox [checked]="acc.owned" (change)="toggleAccessory(acc)">
-                    {{ acc.name }}
-                  </mat-checkbox>
+                  <span>{{ acc.name }}</span>
                   <button mat-icon-button color="warn" (click)="deleteAccessory(acc)">
                     <mat-icon>delete</mat-icon>
                   </button>
@@ -169,7 +164,6 @@ import { ApiService, ToyLine, Series, Tag, Figure, Accessory, Photo } from '../.
     .flex-field { flex: 1; }
     .small-field { width: 120px; }
     .full-width { width: 100%; }
-    .owned-checkbox { margin-bottom: 16px; display: block; }
     .tags-section { margin-bottom: 16px; }
     .actions { display: flex; gap: 16px; margin-top: 16px; }
     .section-divider { margin: 24px 0; }
@@ -235,7 +229,6 @@ export class FigureFormComponent implements OnInit {
   name = '';
   year: number | null = null;
   notes = '';
-  owned = false;
   selectedToylineId: number | null = null;
   selectedSeriesId: number | null = null;
   selectedTagIds: number[] = [];
@@ -262,7 +255,6 @@ export class FigureFormComponent implements OnInit {
         this.name = figure.name;
         this.year = figure.year;
         this.notes = figure.notes || '';
-        this.owned = figure.owned;
         this.selectedToylineId = figure.toyLineId;
         this.selectedSeriesId = figure.seriesId;
         this.selectedTagIds = figure.tags.map((t) => t.id);
@@ -308,7 +300,6 @@ export class FigureFormComponent implements OnInit {
       name: this.name.trim(),
       year: this.year || undefined,
       notes: this.notes.trim() || undefined,
-      owned: this.owned,
       toyLineId: this.selectedToylineId!,
       seriesId: this.selectedSeriesId!,
       tagIds: this.selectedTagIds,
@@ -332,12 +323,6 @@ export class FigureFormComponent implements OnInit {
     this.api.addAccessory(this.figure.id, this.newAccessoryName.trim()).subscribe((acc) => {
       this.accessories.push(acc);
       this.newAccessoryName = '';
-    });
-  }
-
-  toggleAccessory(acc: Accessory): void {
-    this.api.updateAccessory(acc.id, { owned: !acc.owned }).subscribe((updated) => {
-      acc.owned = updated.owned;
     });
   }
 

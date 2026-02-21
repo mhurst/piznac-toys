@@ -9,20 +9,30 @@ import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-register',
   standalone: true,
   imports: [FormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule],
   template: `
-    <div class="login-container">
-      <mat-card class="login-card">
+    <div class="register-container">
+      <mat-card class="register-card">
         <mat-card-header>
-          <mat-card-title>Login</mat-card-title>
+          <mat-card-title>Register</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           @if (error) {
             <div class="error-message">{{ error }}</div>
           }
           <form (ngSubmit)="onSubmit()">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Invite Code</mat-label>
+              <input matInput [(ngModel)]="inviteCode" name="inviteCode" required>
+              <mat-icon matSuffix>vpn_key</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Name</mat-label>
+              <input matInput [(ngModel)]="name" name="name">
+              <mat-icon matSuffix>person</mat-icon>
+            </mat-form-field>
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Email</mat-label>
               <input matInput type="email" [(ngModel)]="email" name="email" required>
@@ -36,27 +46,24 @@ import { AuthService } from '../../core/auth.service';
               </button>
             </mat-form-field>
             <button mat-raised-button color="primary" type="submit" class="full-width" [disabled]="loading">
-              {{ loading ? 'Logging in...' : 'Login' }}
+              {{ loading ? 'Registering...' : 'Register' }}
             </button>
           </form>
-          <div class="forgot-link">
-            <a routerLink="/forgot-password">Forgot password?</a>
-          </div>
-          <div class="register-link">
-            Have an invite? <a routerLink="/register">Register</a>
+          <div class="login-link">
+            Already have an account? <a routerLink="/login">Login</a>
           </div>
         </mat-card-content>
       </mat-card>
     </div>
   `,
   styles: [`
-    .login-container {
+    .register-container {
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: calc(100vh - 64px);
     }
-    .login-card { width: 400px; max-width: 90vw; padding: 24px; }
+    .register-card { width: 400px; max-width: 90vw; padding: 24px; }
     mat-card-header { margin-bottom: 24px; }
     mat-card-title { color: #1565C0 !important; font-size: 1.5rem; font-weight: 700; }
     .full-width { width: 100%; }
@@ -69,13 +76,13 @@ import { AuthService } from '../../core/auth.service';
       text-align: center;
     }
     form { display: flex; flex-direction: column; gap: 8px; }
-    .forgot-link { text-align: center; margin-top: 12px; }
-    .forgot-link a { color: #1565C0; text-decoration: none; font-size: 0.9rem; }
-    .register-link { text-align: center; margin-top: 16px; color: #666; }
-    .register-link a { color: #1565C0; text-decoration: none; font-weight: 600; }
+    .login-link { text-align: center; margin-top: 16px; color: #666; }
+    .login-link a { color: #1565C0; text-decoration: none; font-weight: 600; }
   `],
 })
-export class LoginComponent {
+export class RegisterComponent {
+  inviteCode = '';
+  name = '';
   email = '';
   password = '';
   error = '';
@@ -85,17 +92,17 @@ export class LoginComponent {
   constructor(private auth: AuthService, private router: Router) {}
 
   onSubmit(): void {
-    if (!this.email || !this.password) return;
+    if (!this.email || !this.password || !this.inviteCode) return;
     this.loading = true;
     this.error = '';
 
-    this.auth.login(this.email, this.password).subscribe({
+    this.auth.register(this.email, this.password, this.name, this.inviteCode).subscribe({
       next: () => {
         this.router.navigate(['/admin']);
       },
       error: (err) => {
         this.loading = false;
-        this.error = err.error?.error || 'Login failed';
+        this.error = err.error?.error || 'Registration failed';
       },
     });
   }

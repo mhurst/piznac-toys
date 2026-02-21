@@ -17,9 +17,16 @@ import { Router } from '@angular/router';
       <span class="spacer"></span>
       <a mat-button routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
       @if (auth.isLoggedIn$ | async) {
-        <a mat-button routerLink="/admin" routerLinkActive="active">Admin</a>
-        <a mat-icon-button routerLink="/admin/profile">
-          <mat-icon>account_circle</mat-icon>
+        <a mat-button routerLink="/admin/collection" routerLinkActive="active">My Collection</a>
+        @if (auth.isAdmin) {
+          <a mat-button routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Admin</a>
+        }
+        <a mat-icon-button routerLink="/admin/profile" class="avatar-link">
+          @if ((auth.currentUser$ | async)?.avatar) {
+            <img [src]="'/uploads/' + (auth.currentUser$ | async)?.avatar" class="nav-avatar" alt="Avatar">
+          } @else {
+            <mat-icon>account_circle</mat-icon>
+          }
         </a>
         <button mat-button (click)="logout()">
           <mat-icon>logout</mat-icon>
@@ -46,6 +53,13 @@ import { Router } from '@angular/router';
     }
     .spacer { flex: 1; }
     .active { font-weight: 700; }
+    .nav-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .avatar-link { display: flex; align-items: center; }
   `],
 })
 export class AppComponent {

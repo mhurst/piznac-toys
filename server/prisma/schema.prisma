@@ -7,10 +7,33 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-model Admin {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
-  password String
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("MEMBER")
+  active    Boolean  @default(true)
+  avatar    String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  collection       UserFigure[]
+  ownedAccessories UserAccessory[]
+  photos    Photo[]
+  invitesCreated Invite[] @relation("InviteCreator")
+  inviteUsed     Invite?  @relation("InviteUser")
+  passwordResets PasswordReset[]
+}
+
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ToyLine {
@@ -54,7 +77,6 @@ model Figure {
   name        String
   year        Int?
   notes       String?
-  owned       Boolean     @default(false)
   toyLineId   Int
   seriesId    Int
   createdAt   DateTime    @default(now())
@@ -64,6 +86,7 @@ model Figure {
   tags        FigureTag[]
   accessories Accessory[]
   photos      Photo[]
+  collectors  UserFigure[]
 }
 
 model FigureTag {
@@ -78,9 +101,9 @@ model FigureTag {
 model Accessory {
   id       Int     @id @default(autoincrement())
   name     String
-  owned    Boolean @default(false)
   figureId Int
   figure   Figure  @relation(fields: [figureId], references: [id], onDelete: Cascade)
+  userStatuses UserAccessory[]
 }
 
 model Photo {
@@ -88,5 +111,38 @@ model Photo {
   filename  String
   isPrimary Boolean @default(false)
   figureId  Int
+  userId    Int?
   figure    Figure  @relation(fields: [figureId], references: [id], onDelete: Cascade)
+  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserFigure {
+  userId    Int
+  figureId  Int
+  notes     String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  figure    Figure   @relation(fields: [figureId], references: [id], onDelete: Cascade)
+  @@id([userId, figureId])
+}
+
+model UserAccessory {
+  userId      Int
+  accessoryId Int
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessory   Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+  @@id([userId, accessoryId])
+}
+
+model Invite {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  email     String?
+  createdById Int
+  usedById    Int?     @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  createdBy User     @relation("InviteCreator", fields: [createdById], references: [id])
+  usedBy    User?    @relation("InviteUser", fields: [usedById], references: [id])
 }

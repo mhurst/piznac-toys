@@ -77,4 +77,37 @@ async function optimizeImages(req, res, next) {
   }
 }
 
-module.exports = { upload, setPrefix, optimizeImages };
+// Factory version: optimize images at a custom max width
+function optimizeImagesAt(maxWidth) {
+  return async (req, res, next) => {
+    const files = req.files || (req.file ? [req.file] : []);
+    if (files.length === 0) return next();
+
+    try {
+      for (const file of files) {
+        const originalPath = file.path;
+        const webpFilename = file.filename.replace(/\.\w+$/, '.webp');
+        const webpPath = path.join(UPLOADS_DIR, webpFilename);
+
+        const buffer = fs.readFileSync(originalPath);
+
+        await sharp(buffer)
+          .rotate()
+          .resize(maxWidth, null, { withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toFile(webpPath);
+
+        fs.unlinkSync(originalPath);
+
+        file.filename = webpFilename;
+        file.path = webpPath;
+      }
+      next();
+    } catch (err) {
+      console.error('optimizeImagesAt error:', err);
+      res.status(500).json({ error: 'Image processing failed', details: err.message });
+    }
+  };
+}
+
+module.exports = { upload, setPrefix, optimizeImages, optimizeImagesAt, UPLOADS_DIR };

@@ -62,7 +62,7 @@ import { ApiService, ToyLine, Figure } from '../../core/api.service';
         </ng-container>
         <ng-container matColumnDef="accessories">
           <th mat-header-cell *matHeaderCellDef>Accessories</th>
-          <td mat-cell *matCellDef="let fig">{{ fig.ownedAccessoryCount || 0 }}/{{ fig.accessoryCount || 0 }}</td>
+          <td mat-cell *matCellDef="let fig">{{ fig.accessoryCount || 0 }}</td>
         </ng-container>
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef></th>

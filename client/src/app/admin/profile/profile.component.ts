@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../core/auth.service';
+import { ApiService } from '../../core/api.service';
 
 @Component({
   selector: 'app-profile',
@@ -16,13 +17,67 @@ import { AuthService } from '../../core/auth.service';
     <div class="page-container">
       <h1>Profile</h1>
 
+      <!-- Avatar Section -->
       <mat-card class="profile-card">
         <mat-card-content>
+          <h3>Avatar</h3>
+          <div class="avatar-section">
+            @if (avatarUrl) {
+              <img [src]="avatarUrl" class="avatar-preview" alt="Avatar">
+            } @else {
+              <mat-icon class="avatar-placeholder">account_circle</mat-icon>
+            }
+            <div class="avatar-actions">
+              <button mat-raised-button color="primary" (click)="avatarInput.click()">
+                <mat-icon>upload</mat-icon> Upload Avatar
+              </button>
+              @if (avatarUrl) {
+                <button mat-button color="warn" (click)="removeAvatar()">
+                  <mat-icon>delete</mat-icon> Remove
+                </button>
+              }
+              <input #avatarInput type="file" accept="image/*" hidden (change)="onAvatarSelected($event)">
+            </div>
+          </div>
+          @if (avatarMessage) {
+            <div class="message" [class.error]="avatarIsError" [class.success]="!avatarIsError">{{ avatarMessage }}</div>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Bio Section -->
+      <mat-card class="profile-card">
+        <mat-card-content>
+          <h3>Bio</h3>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>About you (max 500 characters)</mat-label>
+            <textarea matInput [(ngModel)]="bio" name="bio" rows="4" maxlength="500"></textarea>
+            <mat-hint>{{ bio.length }}/500</mat-hint>
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="saveBio()" [disabled]="savingBio">
+            {{ savingBio ? 'Saving...' : 'Save Bio' }}
+          </button>
+          @if (bioMessage) {
+            <div class="message" [class.error]="bioIsError" [class.success]="!bioIsError">{{ bioMessage }}</div>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Account Settings -->
+      <mat-card class="profile-card">
+        <mat-card-content>
+          <h3>Account Settings</h3>
           @if (message) {
             <div class="message" [class.error]="isError" [class.success]="!isError">{{ message }}</div>
           }
 
           <form (ngSubmit)="onSubmit()">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Name</mat-label>
+              <input matInput [(ngModel)]="name" name="name">
+              <mat-icon matSuffix>person</mat-icon>
+            </mat-form-field>
+
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Email</mat-label>
               <input matInput type="email" [(ngModel)]="email" name="email" required>
@@ -55,21 +110,37 @@ import { AuthService } from '../../core/auth.service';
   `,
   styles: [`
     h1 { color: #1565C0; margin-bottom: 24px; font-weight: 700; }
-    .profile-card { max-width: 500px; padding: 24px; }
+    h3 { color: #333; margin: 0 0 16px; font-weight: 600; }
+    .profile-card { max-width: 500px; padding: 24px; margin-bottom: 24px; }
     .full-width { width: 100%; }
     form { display: flex; flex-direction: column; gap: 8px; }
     .message {
       padding: 12px;
       border-radius: 4px;
-      margin-bottom: 16px;
+      margin-top: 12px;
       text-align: center;
     }
-    .error { background: #ffebee; color: #c62828; padding: 12px; border-radius: 4px; }
-    .success { background: #e8f5e9; color: #2e7d32; padding: 12px; border-radius: 4px; }
+    .error { background: #ffebee; color: #c62828; }
+    .success { background: #e8f5e9; color: #2e7d32; }
+    .avatar-section { display: flex; align-items: center; gap: 24px; }
+    .avatar-preview {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .avatar-placeholder {
+      font-size: 96px;
+      width: 96px;
+      height: 96px;
+      color: #bdbdbd;
+    }
+    .avatar-actions { display: flex; flex-direction: column; gap: 8px; }
   `],
 })
 export class ProfileComponent implements OnInit {
   email = '';
+  name = '';
   currentPassword = '';
   newPassword = '';
   showCurrent = false;
@@ -78,12 +149,79 @@ export class ProfileComponent implements OnInit {
   message = '';
   isError = false;
 
-  constructor(private http: HttpClient, private auth: AuthService) {}
+  bio = '';
+  savingBio = false;
+  bioMessage = '';
+  bioIsError = false;
+
+  avatarUrl: string | null = null;
+  avatarMessage = '';
+  avatarIsError = false;
+
+  constructor(private http: HttpClient, private auth: AuthService, private api: ApiService) {}
 
   ngOnInit(): void {
-    this.http.get<{ email: string }>('/api/auth/profile').subscribe({
-      next: (res) => { this.email = res.email; },
+    this.http.get<{ email: string; name: string | null; avatar: string | null; bio: string | null }>('/api/auth/profile').subscribe({
+      next: (res) => {
+        this.email = res.email;
+        this.name = res.name || '';
+        this.bio = res.bio || '';
+        this.avatarUrl = res.avatar ? '/uploads/' + res.avatar : null;
+      },
       error: () => { this.message = 'Failed to load profile'; this.isError = true; },
+    });
+  }
+
+  onAvatarSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    this.avatarMessage = '';
+
+    this.api.uploadAvatar(input.files[0]).subscribe({
+      next: (res) => {
+        this.avatarUrl = '/uploads/' + res.avatar;
+        this.auth.updateUser({ avatar: res.avatar });
+        this.avatarMessage = 'Avatar updated';
+        this.avatarIsError = false;
+      },
+      error: (err) => {
+        this.avatarMessage = err.error?.error || 'Upload failed';
+        this.avatarIsError = true;
+      },
+    });
+    input.value = '';
+  }
+
+  removeAvatar(): void {
+    this.api.deleteAvatar().subscribe({
+      next: () => {
+        this.avatarUrl = null;
+        this.auth.updateUser({ avatar: null });
+        this.avatarMessage = 'Avatar removed';
+        this.avatarIsError = false;
+      },
+      error: (err) => {
+        this.avatarMessage = err.error?.error || 'Failed to remove avatar';
+        this.avatarIsError = true;
+      },
+    });
+  }
+
+  saveBio(): void {
+    this.savingBio = true;
+    this.bioMessage = '';
+
+    this.api.updateBio(this.bio).subscribe({
+      next: () => {
+        this.savingBio = false;
+        this.bioMessage = 'Bio saved';
+        this.bioIsError = false;
+      },
+      error: (err) => {
+        this.savingBio = false;
+        this.bioMessage = err.error?.error || 'Failed to save bio';
+        this.bioIsError = true;
+      },
     });
   }
 
@@ -92,19 +230,17 @@ export class ProfileComponent implements OnInit {
     this.saving = true;
     this.message = '';
 
-    const body: any = { email: this.email, currentPassword: this.currentPassword };
+    const body: any = { email: this.email, name: this.name, currentPassword: this.currentPassword };
     if (this.newPassword) body.newPassword = this.newPassword;
 
-    this.http.put<{ message: string; email: string; token?: string }>('/api/auth/profile', body).subscribe({
+    this.http.put<{ message: string; email: string; name: string | null; token?: string }>('/api/auth/profile', body).subscribe({
       next: (res) => {
         this.saving = false;
         this.message = res.message;
         this.isError = false;
         this.currentPassword = '';
         this.newPassword = '';
-        if (res.token) {
-          localStorage.setItem('piznac-toys-token', res.token);
-        }
+        this.auth.updateUser({ email: res.email, name: res.name }, res.token);
       },
       error: (err) => {
         this.saving = false;

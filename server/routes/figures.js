@@ -1,12 +1,12 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/figures — browse figures (paginated, filterable)
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const { toylineId, seriesId, tagIds, search, page = '1', limit = '20' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -24,19 +24,31 @@ router.get('/', async (req, res) => {
       where.tags = { some: { tagId: { in: ids } } };
     }
 
+    const include = {
+      series: { select: { name: true } },
+      toyLine: { select: { name: true, slug: true } },
+      tags: { include: { tag: true } },
+      photos: { where: { isPrimary: true }, take: 1 },
+      accessories: true,
+    };
+
+    // Include user-specific collection data when logged in
+    if (req.userId) {
+      include.collectors = { where: { userId: req.userId } };
+      include.accessories = {
+        include: {
+          userStatuses: { where: { userId: req.userId } },
+        },
+      };
+    }
+
     const [figures, total] = await Promise.all([
       prisma.figure.findMany({
         where,
         skip,
         take,
         orderBy: { name: 'asc' },
-        include: {
-          series: { select: { name: true } },
-          toyLine: { select: { name: true, slug: true } },
-          tags: { include: { tag: true } },
-          photos: { where: { isPrimary: true }, take: 1 },
-          accessories: true,
-        },
+        include,
       }),
       prisma.figure.count({ where }),
     ]);
@@ -46,7 +58,11 @@ router.get('/', async (req, res) => {
       tags: f.tags.map((ft) => ft.tag),
       primaryPhoto: f.photos[0] || null,
       accessoryCount: f.accessories.length,
-      ownedAccessoryCount: f.accessories.filter((a) => a.owned).length,
+      ownedAccessoryCount: req.userId
+        ? f.accessories.filter((a) => a.userStatuses && a.userStatuses.length > 0).length
+        : 0,
+      inCollection: req.userId ? (f.collectors && f.collectors.length > 0) : false,
+      collectors: undefined,
     }));
 
     res.json({
@@ -62,37 +78,59 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/figures/:id — figure detail
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
+    const include = {
+      series: true,
+      toyLine: true,
+      tags: { include: { tag: true } },
+      accessories: { orderBy: { name: 'asc' } },
+      photos: { orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }] },
+    };
+
+    // Include user-specific data when logged in
+    if (req.userId) {
+      include.collectors = { where: { userId: req.userId } };
+      include.accessories = {
+        orderBy: { name: 'asc' },
+        include: {
+          userStatuses: { where: { userId: req.userId } },
+        },
+      };
+    }
+
     const figure = await prisma.figure.findUnique({
       where: { id: parseInt(req.params.id) },
-      include: {
-        series: true,
-        toyLine: true,
-        tags: { include: { tag: true } },
-        accessories: { orderBy: { name: 'asc' } },
-        photos: { orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }] },
-      },
+      include,
     });
 
     if (!figure) {
       return res.status(404).json({ error: 'Figure not found' });
     }
 
-    res.json({
+    const result = {
       ...figure,
       tags: figure.tags.map((ft) => ft.tag),
-    });
+      inCollection: req.userId ? (figure.collectors && figure.collectors.length > 0) : false,
+      accessories: figure.accessories.map((a) => ({
+        ...a,
+        owned: req.userId && a.userStatuses ? a.userStatuses.length > 0 : false,
+        userStatuses: undefined,
+      })),
+      collectors: undefined,
+    };
+
+    res.json(result);
   } catch (err) {
     console.error('Error fetching figure:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// POST /api/figures — create figure (admin)
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/figures — create figure (admin only)
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { name, year, notes, owned, toyLineId, seriesId, tagIds } = req.body;
+    const { name, year, notes, toyLineId, seriesId, tagIds } = req.body;
 
     if (!name || !toyLineId || !seriesId) {
       return res.status(400).json({ error: 'Name, toyLineId, and seriesId are required' });
@@ -103,7 +141,6 @@ router.post('/', requireAuth, async (req, res) => {
         name,
         year: year ? parseInt(year) : null,
         notes: notes || null,
-        owned: owned || false,
         toyLineId: parseInt(toyLineId),
         seriesId: parseInt(seriesId),
         tags: tagIds && tagIds.length > 0
@@ -129,16 +166,19 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/figures/:id — update figure (admin)
-router.put('/:id', requireAuth, async (req, res) => {
+// PUT /api/figures/:id — update figure (admin only)
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { name, year, notes, owned, toyLineId, seriesId, tagIds } = req.body;
+
+    const existing = await prisma.figure.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Figure not found' });
+
+    const { name, year, notes, toyLineId, seriesId, tagIds } = req.body;
 
     const data = {};
     if (name !== undefined) data.name = name;
     if (year !== undefined) data.year = year ? parseInt(year) : null;
-    if (owned !== undefined) data.owned = owned;
     if (notes !== undefined) data.notes = notes;
     if (toyLineId !== undefined) data.toyLineId = parseInt(toyLineId);
     if (seriesId !== undefined) data.seriesId = parseInt(seriesId);
@@ -178,10 +218,9 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/figures/:id — delete figure (admin, cascades)
-router.delete('/:id', requireAuth, async (req, res) => {
+// DELETE /api/figures/:id — delete figure (admin only, cascades)
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    // Get photos to delete files
     const figure = await prisma.figure.findUnique({
       where: { id: parseInt(req.params.id) },
       include: { photos: true },
@@ -209,10 +248,14 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/figures/:id/accessories — add accessory (admin)
-router.post('/:id/accessories', requireAuth, async (req, res) => {
+// POST /api/figures/:id/accessories — add accessory (admin only)
+router.post('/:id/accessories', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { name, owned } = req.body;
+    const figureId = parseInt(req.params.id);
+    const figure = await prisma.figure.findUnique({ where: { id: figureId } });
+    if (!figure) return res.status(404).json({ error: 'Figure not found' });
+
+    const { name } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
@@ -221,8 +264,7 @@ router.post('/:id/accessories', requireAuth, async (req, res) => {
     const accessory = await prisma.accessory.create({
       data: {
         name,
-        owned: owned || false,
-        figureId: parseInt(req.params.id),
+        figureId,
       },
     });
 
@@ -233,21 +275,25 @@ router.post('/:id/accessories', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/accessories/:id — update accessory (admin)
-router.put('/accessories/:id', requireAuth, async (req, res) => {
+// PUT /api/accessories/:id — update accessory (admin only)
+router.put('/accessories/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { name, owned } = req.body;
+    const accessory = await prisma.accessory.findUnique({
+      where: { id: parseInt(req.params.id) },
+    });
+    if (!accessory) return res.status(404).json({ error: 'Accessory not found' });
+
+    const { name } = req.body;
     const data = {};
 
     if (name !== undefined) data.name = name;
-    if (owned !== undefined) data.owned = owned;
 
-    const accessory = await prisma.accessory.update({
+    const updated = await prisma.accessory.update({
       where: { id: parseInt(req.params.id) },
       data,
     });
 
-    res.json(accessory);
+    res.json(updated);
   } catch (err) {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Accessory not found' });
@@ -257,9 +303,14 @@ router.put('/accessories/:id', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/accessories/:id — delete accessory (admin)
-router.delete('/accessories/:id', requireAuth, async (req, res) => {
+// DELETE /api/accessories/:id — delete accessory (admin only)
+router.delete('/accessories/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
+    const accessory = await prisma.accessory.findUnique({
+      where: { id: parseInt(req.params.id) },
+    });
+    if (!accessory) return res.status(404).json({ error: 'Accessory not found' });
+
     await prisma.accessory.delete({
       where: { id: parseInt(req.params.id) },
     });

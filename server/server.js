@@ -8,6 +8,8 @@ const seriesRoutes = require('./routes/series');
 const tagRoutes = require('./routes/tags');
 const figureRoutes = require('./routes/figures');
 const photoRoutes = require('./routes/photos');
+const userRoutes = require('./routes/users');
+const collectionRoutes = require('./routes/collection');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,27 +27,53 @@ app.use('/api/series', seriesRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/figures', figureRoutes);
 app.use('/api/photos', photoRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/collection', collectionRoutes);
 
 // Stats route
 const { PrismaClient } = require('@prisma/client');
+const { optionalAuth } = require('./middleware/auth');
 const prisma = new PrismaClient();
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', optionalAuth, async (req, res) => {
   try {
-    const [totalFigures, totalToylines, totalAccessories, ownedAccessories] = await Promise.all([
+    const [totalFigures, totalToylines, totalAccessories] = await Promise.all([
       prisma.figure.count(),
       prisma.toyLine.count(),
       prisma.accessory.count(),
-      prisma.accessory.count({ where: { owned: true } }),
     ]);
-    res.json({
+
+    const result = {
       totalFigures,
       totalToylines,
       totalAccessories,
-      ownedAccessories,
-      completionPercent: totalAccessories > 0
-        ? Math.round((ownedAccessories / totalAccessories) * 100)
-        : 0,
-    });
+      userStats: null,
+    };
+
+    if (req.userId) {
+      const [ownedFigures, ownedAccessories] = await Promise.all([
+        prisma.userFigure.count({ where: { userId: req.userId } }),
+        prisma.userAccessory.count({ where: { userId: req.userId } }),
+      ]);
+
+      // Total accessories for figures in user's collection
+      const totalCollectionAccessories = await prisma.accessory.count({
+        where: {
+          figure: {
+            collectors: { some: { userId: req.userId } },
+          },
+        },
+      });
+
+      result.userStats = {
+        ownedFigures,
+        ownedAccessories,
+        completionPercent: totalCollectionAccessories > 0
+          ? Math.round((ownedAccessories / totalCollectionAccessories) * 100)
+          : 0,
+      };
+    }
+
+    res.json(result);
   } catch (err) {
     console.error('Error fetching stats:', err);
     res.status(500).json({ error: 'Server error' });

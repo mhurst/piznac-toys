@@ -4,6 +4,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService, Stats } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,7 +12,9 @@ import { ApiService, Stats } from '../../core/api.service';
   imports: [RouterLink, MatCardModule, MatButtonModule, MatIconModule],
   template: `
     <div class="page-container">
-      <h1>Admin Dashboard</h1>
+      <h1>Dashboard</h1>
+
+      <h2>Catalog</h2>
       <div class="stats-grid">
         <mat-card class="stat-card">
           <mat-icon>category</mat-icon>
@@ -25,27 +28,55 @@ import { ApiService, Stats } from '../../core/api.service';
         </mat-card>
         <mat-card class="stat-card">
           <mat-icon>build</mat-icon>
-          <div class="stat-value">{{ stats?.ownedAccessories || 0 }}/{{ stats?.totalAccessories || 0 }}</div>
-          <div class="stat-label">Accessories Owned</div>
-        </mat-card>
-        <mat-card class="stat-card">
-          <mat-icon>pie_chart</mat-icon>
-          <div class="stat-value">{{ stats?.completionPercent || 0 }}%</div>
-          <div class="stat-label">Completion</div>
+          <div class="stat-value">{{ stats?.totalAccessories || 0 }}</div>
+          <div class="stat-label">Accessories</div>
         </mat-card>
       </div>
+
+      @if (stats?.userStats) {
+        <h2>My Collection</h2>
+        <div class="stats-grid">
+          <mat-card class="stat-card">
+            <mat-icon>collections_bookmark</mat-icon>
+            <div class="stat-value">{{ stats?.userStats?.ownedFigures }}</div>
+            <div class="stat-label">Figures Owned</div>
+          </mat-card>
+          <mat-card class="stat-card">
+            <mat-icon>build</mat-icon>
+            <div class="stat-value">{{ stats?.userStats?.ownedAccessories }}</div>
+            <div class="stat-label">Accessories Owned</div>
+          </mat-card>
+          <mat-card class="stat-card">
+            <mat-icon>pie_chart</mat-icon>
+            <div class="stat-value">{{ stats?.userStats?.completionPercent }}%</div>
+            <div class="stat-label">Completion</div>
+          </mat-card>
+        </div>
+      }
+
       <div class="quick-links">
         <h2>Quick Actions</h2>
         <div class="links-grid">
-          <a mat-raised-button routerLink="/admin/toylines" color="primary">
-            <mat-icon>settings</mat-icon> Manage Toylines
+          <a mat-raised-button routerLink="/admin/collection" color="primary">
+            <mat-icon>collections_bookmark</mat-icon> My Collection
           </a>
-          <a mat-raised-button routerLink="/admin/figures" color="primary">
-            <mat-icon>list</mat-icon> View Figures
-          </a>
-          <a mat-raised-button routerLink="/admin/figures/new" color="accent">
-            <mat-icon>add</mat-icon> Add Figure
-          </a>
+          @if (auth.isAdmin) {
+            <a mat-raised-button routerLink="/admin/toylines" color="primary">
+              <mat-icon>settings</mat-icon> Manage Toylines
+            </a>
+            <a mat-raised-button routerLink="/admin/figures" color="primary">
+              <mat-icon>list</mat-icon> Manage Figures
+            </a>
+            <a mat-raised-button routerLink="/admin/figures/new" color="accent">
+              <mat-icon>add</mat-icon> Add Figure
+            </a>
+            <a mat-raised-button routerLink="/admin/invites" color="primary">
+              <mat-icon>mail</mat-icon> Manage Invites
+            </a>
+            <a mat-raised-button routerLink="/admin/users" color="primary">
+              <mat-icon>people</mat-icon> Manage Users
+            </a>
+          }
         </div>
       </div>
     </div>
@@ -71,7 +102,7 @@ import { ApiService, Stats } from '../../core/api.service';
 export class DashboardComponent implements OnInit {
   stats: Stats | null = null;
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, public auth: AuthService) {}
 
   ngOnInit(): void {
     this.api.getStats().subscribe((stats) => {
