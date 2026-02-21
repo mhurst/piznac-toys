@@ -87,6 +87,19 @@ model Figure {
   accessories Accessory[]
   photos      Photo[]
   collectors  UserFigure[]
+  priceCache  PriceCache?
+}
+
+model PriceCache {
+  id          Int      @id @default(autoincrement())
+  figureId    Int      @unique
+  searchQuery String
+  avgPrice    Float?
+  lowPrice    Float?
+  highPrice   Float?
+  resultCount Int      @default(0)
+  lastUpdated DateTime @default(now())
+  figure      Figure   @relation(fields: [figureId], references: [id], onDelete: Cascade)
 }
 
 model FigureTag {

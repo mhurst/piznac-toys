@@ -142,6 +142,16 @@ export interface ForSaleFigure {
   forSaleAccessories: { id: number; name: string }[];
 }
 
+export interface PriceData {
+  avgPrice: number | null;
+  lowPrice: number | null;
+  highPrice: number | null;
+  resultCount: number;
+  lastUpdated: string | null;
+  searchQuery: string | null;
+  configured: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   constructor(private http: HttpClient) {}
@@ -416,5 +426,14 @@ export class ApiService {
 
   toggleAccessoryForSale(accessoryId: number, forSale: boolean): Observable<any> {
     return this.http.put(`/api/collection/accessories/${accessoryId}/for-sale`, { forSale });
+  }
+
+  // Prices
+  getFigurePrice(figureId: number): Observable<PriceData> {
+    return this.http.get<PriceData>(`/api/prices/figure/${figureId}`);
+  }
+
+  refreshFigurePrice(figureId: number): Observable<PriceData> {
+    return this.http.post<PriceData>(`/api/prices/figure/${figureId}/refresh`, {});
   }
 }

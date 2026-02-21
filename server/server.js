@@ -19,6 +19,7 @@ const figureRoutes = require('./routes/figures');
 const photoRoutes = require('./routes/photos');
 const userRoutes = require('./routes/users');
 const collectionRoutes = require('./routes/collection');
+const priceRoutes = require('./routes/prices');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -75,6 +76,7 @@ app.use('/api/figures', figureRoutes);
 app.use('/api/photos', photoRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/collection', collectionRoutes);
+app.use('/api/prices', priceRoutes);
 
 // Stats route
 const { PrismaClient } = require('@prisma/client');

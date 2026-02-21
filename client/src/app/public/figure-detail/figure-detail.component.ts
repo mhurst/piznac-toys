@@ -9,7 +9,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { ApiService, Figure, Photo } from '../../core/api.service';
+import { ApiService, Figure, Photo, PriceData } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
@@ -130,6 +130,43 @@ import { AuthService } from '../../core/auth.service';
                 <p>{{ figure.notes }}</p>
               </div>
             }
+            <div class="market-value">
+              <h3>Market Value</h3>
+              @if (priceLoading) {
+                <p class="price-loading">Loading price data...</p>
+              } @else if (!priceData || !priceData.configured) {
+                <p class="price-na">eBay pricing not configured.</p>
+              } @else if (priceData.resultCount === 0) {
+                <p class="price-na">No pricing data available.</p>
+              } @else {
+                <div class="price-grid">
+                  <div class="price-item">
+                    <span class="price-label">Average</span>
+                    <span class="price-value">{{ formatUSD(priceData.avgPrice) }}</span>
+                  </div>
+                  <div class="price-item">
+                    <span class="price-label">Low</span>
+                    <span class="price-value low">{{ formatUSD(priceData.lowPrice) }}</span>
+                  </div>
+                  <div class="price-item">
+                    <span class="price-label">High</span>
+                    <span class="price-value high">{{ formatUSD(priceData.highPrice) }}</span>
+                  </div>
+                </div>
+                <div class="price-meta">
+                  <span>Based on {{ priceData.resultCount }} eBay listings</span>
+                  @if (priceData.lastUpdated) {
+                    <span>Updated {{ timeAgo(priceData.lastUpdated) }}</span>
+                  }
+                </div>
+                <div class="price-query">Search: "{{ priceData.searchQuery }}"</div>
+              }
+              @if (auth.isAdmin && priceData?.configured) {
+                <button mat-stroked-button class="refresh-btn" (click)="refreshPrice()" [disabled]="priceRefreshing">
+                  <mat-icon>refresh</mat-icon> {{ priceRefreshing ? 'Refreshing...' : 'Refresh' }}
+                </button>
+              }
+            </div>
             <div class="accessories">
               <h3>
                 Accessories
@@ -276,6 +313,28 @@ import { AuthService } from '../../core/auth.service';
     .accessories {
       h3 { color: #555; font-size: 0.85rem; text-transform: uppercase; margin: 0 0 8px; }
     }
+    .market-value {
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      h3 { color: #555; font-size: 0.85rem; text-transform: uppercase; margin: 0 0 12px; }
+    }
+    .price-loading, .price-na { color: #999; font-size: 0.9rem; margin: 0; }
+    .price-grid {
+      display: flex; gap: 16px; margin-bottom: 8px;
+      .price-item { flex: 1; text-align: center; }
+      .price-label { display: block; font-size: 0.75rem; color: #777; text-transform: uppercase; }
+      .price-value { display: block; font-size: 1.25rem; font-weight: 700; color: #333; }
+      .price-value.low { color: #4caf50; }
+      .price-value.high { color: #e53935; }
+    }
+    .price-meta {
+      display: flex; gap: 16px; font-size: 0.8rem; color: #777; margin-bottom: 4px; flex-wrap: wrap;
+    }
+    .price-query { font-size: 0.75rem; color: #aaa; font-style: italic; }
+    .refresh-btn { margin-top: 8px; font-size: 0.8rem; }
     .owned { color: #4caf50; }
     .not-owned { color: #ccc; }
     @media (max-width: 768px) {
@@ -290,6 +349,9 @@ export class FigureDetailComponent implements OnInit {
   uploading = false;
   uploadToCatalog = false;
   newAccessoryName = '';
+  priceData: PriceData | null = null;
+  priceLoading = false;
+  priceRefreshing = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -320,7 +382,52 @@ export class FigureDetailComponent implements OnInit {
     this.api.getFigure(id).subscribe((figure) => {
       this.figure = figure;
       this.selectedPhoto = figure.photos.find((p) => p.isPrimary) || figure.photos[0] || null;
+      this.loadPrice(id);
     });
+  }
+
+  loadPrice(figureId: number): void {
+    this.priceLoading = true;
+    this.api.getFigurePrice(figureId).subscribe({
+      next: (data) => {
+        this.priceData = data;
+        this.priceLoading = false;
+      },
+      error: () => {
+        this.priceData = null;
+        this.priceLoading = false;
+      },
+    });
+  }
+
+  refreshPrice(): void {
+    if (!this.figure) return;
+    this.priceRefreshing = true;
+    this.api.refreshFigurePrice(this.figure.id).subscribe({
+      next: (data) => {
+        this.priceData = data;
+        this.priceRefreshing = false;
+      },
+      error: () => {
+        this.priceRefreshing = false;
+      },
+    });
+  }
+
+  formatUSD(value: number | null): string {
+    if (value === null || value === undefined) return '-';
+    return '$' + value.toFixed(2);
+  }
+
+  timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
   }
 
   addToCollection(): void {
