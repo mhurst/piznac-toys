@@ -80,21 +80,6 @@ app.get('/api/stats', optionalAuth, async (req, res) => {
   }
 });
 
-// Temporary: file sync endpoint for migrating uploads (admin only)
-const { requireAuth, requireAdmin } = require('./middleware/auth');
-const multer = require('multer');
-const fs = require('fs');
-const syncUpload = multer({ dest: path.join(__dirname, 'uploads') });
-app.post('/api/sync-upload', requireAuth, requireAdmin, syncUpload.single('file'), (req, res) => {
-  if (!req.file || !req.body.filename) {
-    if (req.file) fs.unlinkSync(req.file.path);
-    return res.status(400).json({ error: 'file and filename required' });
-  }
-  const dest = path.join(__dirname, 'uploads', req.body.filename);
-  fs.renameSync(req.file.path, dest);
-  res.json({ ok: true, filename: req.body.filename });
-});
-
 // Serve Angular app in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist', 'client', 'browser');
 app.use(express.static(clientDist));
