@@ -38,6 +38,11 @@
   width: $sidebar-width;
 }
 
+.desktop-nav {
+  display: flex;
+  align-items: center;
+}
+
 .mobile-menu-btn {
   display: none;
 }
