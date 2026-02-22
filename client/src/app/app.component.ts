@@ -8,6 +8,7 @@ import { MatListModule } from '@angular/material/list';
 import { AsyncPipe } from '@angular/common';
 import { AuthService } from './core/auth.service';
 import { Router } from '@angular/router';
+import { APP_VERSION } from './core/version';
 
 @Component({
   selector: 'app-root',
@@ -60,6 +61,7 @@ import { Router } from '@angular/router';
       <mat-sidenav-content>
         <mat-toolbar class="app-toolbar">
           <a routerLink="/" class="logo">PIZNAC TOYS</a>
+          <span class="version-badge">v{{ version }}</span>
           <span class="spacer"></span>
 
           <!-- Desktop nav -->
@@ -95,6 +97,9 @@ import { Router } from '@angular/router';
         </mat-toolbar>
 
         <router-outlet></router-outlet>
+        <footer class="app-footer">
+          <span>Piznac Toys v{{ version }}</span>
+        </footer>
       </mat-sidenav-content>
     </mat-sidenav-container>
   `,
@@ -102,6 +107,7 @@ import { Router } from '@angular/router';
 })
 export class AppComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
+  version = APP_VERSION;
 
   constructor(public auth: AuthService, private router: Router) {}
 
