@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subscription, combineLatest } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
@@ -184,7 +185,7 @@ import { ApiService, ToyLine, Series, SubSeries, Tag, Figure } from '../../core/
     }
   `],
 })
-export class BrowseComponent implements OnInit {
+export class BrowseComponent implements OnInit, OnDestroy {
   toyline: ToyLine | null = null;
   seriesList: Series[] = [];
   subSeriesList: SubSeries[] = [];
@@ -198,18 +199,58 @@ export class BrowseComponent implements OnInit {
   selectedSubSeriesId: number | null = null;
   selectedTagIds: number[] = [];
 
-  constructor(private route: ActivatedRoute, private api: ApiService) {}
+  private updating = false;
+  private restoringFromUrl = false;
+  private sub!: Subscription;
+  private currentSlug = '';
+
+  constructor(private route: ActivatedRoute, private router: Router, private api: ApiService) {}
 
   ngOnInit(): void {
-    this.route.params.subscribe((params) => {
-      const slug = params['slug'];
-      this.api.getToyline(slug).subscribe((toyline) => {
-        this.toyline = toyline;
-        this.seriesList = toyline.series || [];
-        this.tags = toyline.tags || [];
-        this.loadFigures();
-      });
-    });
+    this.sub = combineLatest([this.route.params, this.route.queryParams]).subscribe(
+      ([params, qp]) => {
+        if (this.updating) return;
+
+        const slug = params['slug'];
+        const needsReload = slug !== this.currentSlug;
+
+        this.restoringFromUrl = true;
+        this.search = qp['search'] || '';
+        this.selectedSeriesId = qp['series'] ? +qp['series'] : null;
+        this.selectedSubSeriesId = qp['subseries'] ? +qp['subseries'] : null;
+        this.selectedTagIds = qp['tags'] ? qp['tags'].split(',').map(Number) : [];
+        this.currentPage = qp['page'] ? +qp['page'] : 1;
+
+        if (needsReload) {
+          this.currentSlug = slug;
+          this.api.getToyline(slug).subscribe((toyline) => {
+            this.toyline = toyline;
+            this.seriesList = toyline.series || [];
+            this.tags = toyline.tags || [];
+            this.rebuildSubSeries();
+            this.loadFigures();
+            setTimeout(() => this.restoringFromUrl = false);
+          });
+        } else {
+          this.rebuildSubSeries();
+          this.loadFigures();
+          setTimeout(() => this.restoringFromUrl = false);
+        }
+      },
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.sub.unsubscribe();
+  }
+
+  private rebuildSubSeries(): void {
+    if (this.selectedSeriesId) {
+      const series = this.seriesList.find((s) => s.id === this.selectedSeriesId);
+      this.subSeriesList = series?.subSeries || [];
+    } else {
+      this.subSeriesList = [];
+    }
   }
 
   loadFigures(): void {
@@ -229,6 +270,7 @@ export class BrowseComponent implements OnInit {
   }
 
   onSeriesFilterChange(): void {
+    if (this.restoringFromUrl) return;
     this.selectedSubSeriesId = null;
     if (this.selectedSeriesId) {
       const series = this.seriesList.find((s) => s.id === this.selectedSeriesId);
@@ -240,11 +282,13 @@ export class BrowseComponent implements OnInit {
   }
 
   onFilterChange(): void {
+    if (this.restoringFromUrl) return;
     this.currentPage = 1;
-    this.loadFigures();
+    this.updateUrl();
   }
 
   toggleTag(tagId: number): void {
+    if (this.restoringFromUrl) return;
     const idx = this.selectedTagIds.indexOf(tagId);
     if (idx >= 0) {
       this.selectedTagIds.splice(idx, 1);
@@ -255,7 +299,26 @@ export class BrowseComponent implements OnInit {
   }
 
   onPageChange(event: PageEvent): void {
+    if (this.restoringFromUrl) return;
     this.currentPage = event.pageIndex + 1;
-    this.loadFigures();
+    this.updateUrl();
+  }
+
+  private updateUrl(): void {
+    const queryParams: any = {};
+    if (this.search) queryParams.search = this.search;
+    if (this.selectedSeriesId) queryParams.series = this.selectedSeriesId;
+    if (this.selectedSubSeriesId) queryParams.subseries = this.selectedSubSeriesId;
+    if (this.selectedTagIds.length) queryParams.tags = this.selectedTagIds.join(',');
+    if (this.currentPage > 1) queryParams.page = this.currentPage;
+
+    this.updating = true;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+    }).then(() => {
+      this.updating = false;
+      this.loadFigures();
+    });
   }
 }
