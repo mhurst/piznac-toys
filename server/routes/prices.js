@@ -9,7 +9,11 @@ const prisma = new PrismaClient();
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 async function lookupAndCache(figure) {
-  const searchQuery = `${figure.name} ${figure.toyLine.name}`;
+  const parts = [figure.toyLine.name];
+  if (figure.series) parts.push(figure.series.name);
+  if (figure.subSeries) parts.push(figure.subSeries.name);
+  parts.push(figure.name);
+  const searchQuery = parts.join(' ');
   const result = await searchPrices(searchQuery);
 
   if (!result) {
@@ -49,7 +53,7 @@ router.get('/figure/:figureId', optionalAuth, async (req, res) => {
 
     const figure = await prisma.figure.findUnique({
       where: { id: figureId },
-      include: { toyLine: true },
+      include: { toyLine: true, series: true, subSeries: true },
     });
 
     if (!figure) {
@@ -124,7 +128,7 @@ router.post('/figure/:figureId/refresh', requireAuth, requireAdmin, async (req, 
 
     const figure = await prisma.figure.findUnique({
       where: { id: figureId },
-      include: { toyLine: true },
+      include: { toyLine: true, series: true, subSeries: true },
     });
 
     if (!figure) {

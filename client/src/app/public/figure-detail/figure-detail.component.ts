@@ -165,6 +165,7 @@ import { AuthService } from '../../core/auth.service';
                     <span>Updated {{ timeAgo(priceData.lastUpdated) }}</span>
                   }
                 </div>
+                <div class="price-disclaimer">Prices reflect current active eBay listings, not completed sales.</div>
                 <div class="price-query">Search: "{{ priceData.searchQuery }}"</div>
               }
               @if (auth.isAdmin && priceData?.configured) {
@@ -339,6 +340,7 @@ import { AuthService } from '../../core/auth.service';
     .price-meta {
       display: flex; gap: 16px; font-size: 0.8rem; color: #777; margin-bottom: 4px; flex-wrap: wrap;
     }
+    .price-disclaimer { font-size: 0.75rem; color: #999; margin-top: 6px; }
     .price-query { font-size: 0.75rem; color: #aaa; font-style: italic; }
     .refresh-btn { margin-top: 8px; font-size: 0.8rem; }
     .owned { color: #4caf50; }
