@@ -136,6 +136,7 @@ router.get('/:id/needs/:toylineSlug/:seriesSlug', async (req, res) => {
       },
       orderBy: { name: 'asc' },
       include: {
+        subSeries: { select: { id: true, name: true } },
         photos: { where: { isPrimary: true }, take: 1 },
         accessories: {
           where: { userStatuses: { none: { userId } } },
@@ -147,6 +148,7 @@ router.get('/:id/needs/:toylineSlug/:seriesSlug', async (req, res) => {
     const result = figures.map((f) => ({
       id: f.id,
       name: f.name,
+      subSeries: f.subSeries,
       primaryPhoto: f.photos[0] || null,
       missingAccessories: f.accessories,
     }));
@@ -271,6 +273,7 @@ router.get('/:id/for-sale/:toylineSlug/:seriesSlug', async (req, res) => {
       },
       orderBy: { name: 'asc' },
       include: {
+        subSeries: { select: { id: true, name: true } },
         photos: { where: { isPrimary: true }, take: 1 },
         collectors: { where: { userId }, select: { forSale: true } },
         accessories: {
@@ -284,6 +287,7 @@ router.get('/:id/for-sale/:toylineSlug/:seriesSlug', async (req, res) => {
     const result = figures.map((f) => ({
       id: f.id,
       name: f.name,
+      subSeries: f.subSeries,
       primaryPhoto: f.photos[0] || null,
       figureForSale: f.collectors[0]?.forSale || false,
       forSaleAccessories: f.accessories

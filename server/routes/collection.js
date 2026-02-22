@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 // GET /api/collection — list current user's collection
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { toylineId, seriesId, search, page = '1', limit = '20' } = req.query;
+    const { toylineId, seriesId, subSeriesId, search, page = '1', limit = '20' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -18,6 +18,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     if (toylineId) figureWhere.toyLineId = parseInt(toylineId);
     if (seriesId) figureWhere.seriesId = parseInt(seriesId);
+    if (subSeriesId) figureWhere.subSeriesId = parseInt(subSeriesId);
     if (search) figureWhere.name = { contains: search, mode: 'insensitive' };
 
     if (Object.keys(figureWhere).length > 0) {
@@ -34,6 +35,7 @@ router.get('/', requireAuth, async (req, res) => {
           figure: {
             include: {
               series: { select: { name: true } },
+              subSeries: { select: { id: true, name: true, slug: true } },
               toyLine: { select: { name: true, slug: true } },
               tags: { include: { tag: true } },
               photos: { orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }] },

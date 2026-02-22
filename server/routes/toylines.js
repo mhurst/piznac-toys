@@ -32,7 +32,7 @@ router.get('/:slug', async (req, res) => {
     const toyline = await prisma.toyLine.findUnique({
       where: { slug: req.params.slug },
       include: {
-        series: { orderBy: { name: 'asc' } },
+        series: { orderBy: { name: 'asc' }, include: { subSeries: { orderBy: { name: 'asc' } } } },
         tags: { orderBy: { name: 'asc' } },
         _count: { select: { figures: true } },
       },

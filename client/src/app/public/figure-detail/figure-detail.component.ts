@@ -27,6 +27,12 @@ import { AuthService } from '../../core/auth.service';
           <span> / </span>
           <a [routerLink]="['/browse', figure.toyLine.slug]">{{ figure.toyLine.name }}</a>
           <span> / </span>
+          <span>{{ figure.series.name }}</span>
+          @if (figure.subSeries) {
+            <span> / </span>
+            <span>{{ figure.subSeries.name }}</span>
+          }
+          <span> / </span>
           <span>{{ figure.name }}</span>
         </div>
         <div class="detail-layout">
@@ -92,7 +98,7 @@ import { AuthService } from '../../core/auth.service';
               }
             </h1>
             <div class="meta">
-              <span class="series">{{ figure.series.name }}</span>
+              <span class="series">{{ figure.series.name }}{{ figure.subSeries ? ' / ' + figure.subSeries.name : '' }}</span>
               @if (figure.year) {
                 <span class="year">{{ figure.year }}</span>
               }

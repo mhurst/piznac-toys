@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDividerModule } from '@angular/material/divider';
-import { ApiService, ToyLine, Series, Tag } from '../../core/api.service';
+import { ApiService, ToyLine, Series, SubSeries, Tag } from '../../core/api.service';
 import { forkJoin, of } from 'rxjs';
 
 @Component({
@@ -115,6 +115,30 @@ import { forkJoin, of } from 'rxjs';
                       <button mat-icon-button color="warn" (click)="deleteSeries(s, toyline)"><mat-icon>delete</mat-icon></button>
                     }
                   </div>
+                  <div class="sub-series-section">
+                    @for (ss of s.subSeries || []; track ss.id) {
+                      <div class="item-row sub-item">
+                        @if (editingSubSeries === ss.id) {
+                          <input matInput [(ngModel)]="editSubSeriesName" (keyup.enter)="saveSubSeries(ss)" class="inline-edit">
+                          <button mat-icon-button (click)="saveSubSeries(ss)"><mat-icon>check</mat-icon></button>
+                          <button mat-icon-button (click)="editingSubSeries = null"><mat-icon>close</mat-icon></button>
+                        } @else {
+                          <span>{{ ss.name }}</span>
+                          <button mat-icon-button (click)="startEditSubSeries(ss)"><mat-icon>edit</mat-icon></button>
+                          <button mat-icon-button color="warn" (click)="deleteSubSeries(ss, s)"><mat-icon>delete</mat-icon></button>
+                        }
+                      </div>
+                    }
+                    <div class="add-inline sub-add">
+                      <mat-form-field appearance="outline" class="small-field">
+                        <mat-label>New Sub-Series</mat-label>
+                        <input matInput [(ngModel)]="newSubSeriesName" (keyup.enter)="addSubSeries(s)">
+                      </mat-form-field>
+                      <button mat-mini-fab color="primary" (click)="addSubSeries(s)" [disabled]="!newSubSeriesName.trim()">
+                        <mat-icon>add</mat-icon>
+                      </button>
+                    </div>
+                  </div>
                 }
               </div>
             </div>
@@ -208,6 +232,9 @@ import { forkJoin, of } from 'rxjs';
       width: 80px;
       font-size: inherit;
     }
+    .sub-series-section { margin-left: 32px; }
+    .sub-item { font-size: 0.9rem; }
+    .sub-add { margin-top: 4px; }
     .section { padding: 8px 0; }
     .cover-area {
       display: flex;
@@ -256,9 +283,13 @@ export class ManageToylinesComponent implements OnInit {
   coverPreviewUrl: string | null = null;
   saving = false;
 
-  // Series/tag inline edit
+  newSubSeriesName = '';
+
+  // Series/tag/sub-series inline edit
   editingSeries: number | null = null;
   editSeriesName = '';
+  editingSubSeries: number | null = null;
+  editSubSeriesName = '';
   editingTag: number | null = null;
   editTagName = '';
 
@@ -378,6 +409,35 @@ export class ManageToylinesComponent implements OnInit {
     if (!confirm(`Delete series "${series.name}"?`)) return;
     this.api.deleteSeries(series.id).subscribe(() => {
       toyline.series = toyline.series?.filter((s) => s.id !== series.id);
+    });
+  }
+
+  addSubSeries(series: Series): void {
+    if (!this.newSubSeriesName.trim()) return;
+    this.api.createSubSeries(this.newSubSeriesName.trim(), series.id).subscribe((ss) => {
+      this.newSubSeriesName = '';
+      if (!series.subSeries) series.subSeries = [];
+      series.subSeries.push(ss);
+    });
+  }
+
+  startEditSubSeries(ss: SubSeries): void {
+    this.editingSubSeries = ss.id;
+    this.editSubSeriesName = ss.name;
+  }
+
+  saveSubSeries(ss: SubSeries): void {
+    if (!this.editSubSeriesName.trim()) return;
+    this.api.updateSubSeries(ss.id, this.editSubSeriesName.trim()).subscribe(() => {
+      ss.name = this.editSubSeriesName.trim();
+      this.editingSubSeries = null;
+    });
+  }
+
+  deleteSubSeries(ss: SubSeries, series: Series): void {
+    if (!confirm(`Delete sub-series "${ss.name}"?`)) return;
+    this.api.deleteSubSeries(ss.id).subscribe(() => {
+      series.subSeries = series.subSeries?.filter((s) => s.id !== ss.id);
     });
   }
 

@@ -9,7 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { ApiService, ToyLine, Series, Tag, Figure } from '../../core/api.service';
+import { ApiService, ToyLine, Series, SubSeries, Tag, Figure } from '../../core/api.service';
 
 @Component({
   selector: 'app-browse',
@@ -34,10 +34,21 @@ import { ApiService, ToyLine, Series, Tag, Figure } from '../../core/api.service
           @if (seriesList.length > 0) {
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Series</mat-label>
-              <mat-select [(ngModel)]="selectedSeriesId" (selectionChange)="onFilterChange()">
+              <mat-select [(ngModel)]="selectedSeriesId" (selectionChange)="onSeriesFilterChange()">
                 <mat-option [value]="null">All Series</mat-option>
                 @for (s of seriesList; track s.id) {
                   <mat-option [value]="s.id">{{ s.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+          @if (subSeriesList.length > 0) {
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Sub-Series</mat-label>
+              <mat-select [(ngModel)]="selectedSubSeriesId" (selectionChange)="onFilterChange()">
+                <mat-option [value]="null">All Sub-Series</mat-option>
+                @for (ss of subSeriesList; track ss.id) {
+                  <mat-option [value]="ss.id">{{ ss.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
@@ -76,7 +87,7 @@ import { ApiService, ToyLine, Series, Tag, Figure } from '../../core/api.service
                 </div>
                 <mat-card-content>
                   <h3>{{ figure.name }}</h3>
-                  <p class="series-name">{{ figure.series.name }}</p>
+                  <p class="series-name">{{ figure.series.name }}{{ figure.subSeries ? ' / ' + figure.subSeries.name : '' }}</p>
                   @if (figure.accessoryCount) {
                     <div class="completion">
                       <div class="completion-bar">
@@ -176,6 +187,7 @@ import { ApiService, ToyLine, Series, Tag, Figure } from '../../core/api.service
 export class BrowseComponent implements OnInit {
   toyline: ToyLine | null = null;
   seriesList: Series[] = [];
+  subSeriesList: SubSeries[] = [];
   tags: Tag[] = [];
   figures: Figure[] = [];
   totalFigures = 0;
@@ -183,6 +195,7 @@ export class BrowseComponent implements OnInit {
   pageSize = 20;
   search = '';
   selectedSeriesId: number | null = null;
+  selectedSubSeriesId: number | null = null;
   selectedTagIds: number[] = [];
 
   constructor(private route: ActivatedRoute, private api: ApiService) {}
@@ -204,6 +217,7 @@ export class BrowseComponent implements OnInit {
     this.api.getFigures({
       toylineId: this.toyline.id,
       seriesId: this.selectedSeriesId || undefined,
+      subSeriesId: this.selectedSubSeriesId || undefined,
       tagIds: this.selectedTagIds.length ? this.selectedTagIds : undefined,
       search: this.search || undefined,
       page: this.currentPage,
@@ -212,6 +226,17 @@ export class BrowseComponent implements OnInit {
       this.figures = result.figures;
       this.totalFigures = result.total;
     });
+  }
+
+  onSeriesFilterChange(): void {
+    this.selectedSubSeriesId = null;
+    if (this.selectedSeriesId) {
+      const series = this.seriesList.find((s) => s.id === this.selectedSeriesId);
+      this.subSeriesList = series?.subSeries || [];
+    } else {
+      this.subSeriesList = [];
+    }
+    this.onFilterChange();
   }
 
   onFilterChange(): void {

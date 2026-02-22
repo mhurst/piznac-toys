@@ -14,6 +14,7 @@ if (!process.env.JWT_SECRET) {
 const authRoutes = require('./routes/auth');
 const toylineRoutes = require('./routes/toylines');
 const seriesRoutes = require('./routes/series');
+const subSeriesRoutes = require('./routes/subseries');
 const tagRoutes = require('./routes/tags');
 const figureRoutes = require('./routes/figures');
 const photoRoutes = require('./routes/photos');
@@ -71,6 +72,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 app.use('/api/auth', authRoutes);
 app.use('/api/toylines', toylineRoutes);
 app.use('/api/series', seriesRoutes);
+app.use('/api/subseries', subSeriesRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/figures', figureRoutes);
 app.use('/api/photos', photoRoutes);

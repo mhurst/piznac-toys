@@ -54,7 +54,7 @@ import { ApiService, ToyLine, Figure } from '../../core/api.service';
         </ng-container>
         <ng-container matColumnDef="series">
           <th mat-header-cell *matHeaderCellDef>Series</th>
-          <td mat-cell *matCellDef="let fig">{{ fig.series?.name }}</td>
+          <td mat-cell *matCellDef="let fig">{{ fig.series?.name }}{{ fig.subSeries ? ' / ' + fig.subSeries.name : '' }}</td>
         </ng-container>
         <ng-container matColumnDef="year">
           <th mat-header-cell *matHeaderCellDef>Year</th>

@@ -9,7 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
-import { ApiService, ToyLine, Series, Tag, Figure, Accessory, Photo } from '../../core/api.service';
+import { ApiService, ToyLine, Series, SubSeries, Tag, Figure, Accessory, Photo } from '../../core/api.service';
 
 @Component({
   selector: 'app-figure-form',
@@ -46,13 +46,27 @@ import { ApiService, ToyLine, Series, Tag, Figure, Accessory, Photo } from '../.
             </mat-form-field>
             <mat-form-field appearance="outline" class="flex-field">
               <mat-label>Series</mat-label>
-              <mat-select [(ngModel)]="selectedSeriesId" required>
+              <mat-select [(ngModel)]="selectedSeriesId" (selectionChange)="onSeriesChange()" required>
                 @for (s of availableSeries; track s.id) {
                   <mat-option [value]="s.id">{{ s.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
           </div>
+
+          @if (availableSubSeries.length > 0) {
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="flex-field">
+                <mat-label>Sub-Series</mat-label>
+                <mat-select [(ngModel)]="selectedSubSeriesId">
+                  <mat-option [value]="null">None</mat-option>
+                  @for (ss of availableSubSeries; track ss.id) {
+                    <mat-option [value]="ss.id">{{ ss.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
 
           @if (availableTags.length > 0) {
             <div class="tags-section">
@@ -222,6 +236,7 @@ export class FigureFormComponent implements OnInit {
   figure: Figure | null = null;
   toylines: ToyLine[] = [];
   availableSeries: Series[] = [];
+  availableSubSeries: SubSeries[] = [];
   availableTags: Tag[] = [];
   accessories: Accessory[] = [];
   photos: Photo[] = [];
@@ -231,6 +246,7 @@ export class FigureFormComponent implements OnInit {
   notes = '';
   selectedToylineId: number | null = null;
   selectedSeriesId: number | null = null;
+  selectedSubSeriesId: number | null = null;
   selectedTagIds: number[] = [];
   newAccessoryName = '';
   dragOver = false;
@@ -257,6 +273,7 @@ export class FigureFormComponent implements OnInit {
         this.notes = figure.notes || '';
         this.selectedToylineId = figure.toyLineId;
         this.selectedSeriesId = figure.seriesId;
+        this.selectedSubSeriesId = figure.subSeriesId;
         this.selectedTagIds = figure.tags.map((t) => t.id);
         this.accessories = figure.accessories;
         this.photos = figure.photos;
@@ -268,6 +285,7 @@ export class FigureFormComponent implements OnInit {
   onToylineChange(): void {
     if (!this.selectedToylineId) {
       this.availableSeries = [];
+      this.availableSubSeries = [];
       this.availableTags = [];
       return;
     }
@@ -276,7 +294,24 @@ export class FigureFormComponent implements OnInit {
       this.api.getToyline(toyline.slug).subscribe((full) => {
         this.availableSeries = full.series || [];
         this.availableTags = full.tags || [];
+        this.onSeriesChange();
       });
+    }
+  }
+
+  onSeriesChange(): void {
+    if (!this.selectedSeriesId) {
+      this.availableSubSeries = [];
+      this.selectedSubSeriesId = null;
+      return;
+    }
+    const series = this.availableSeries.find((s) => s.id === this.selectedSeriesId);
+    this.availableSubSeries = series?.subSeries || [];
+    if (this.availableSubSeries.length > 0 && this.selectedSubSeriesId) {
+      const exists = this.availableSubSeries.some((ss) => ss.id === this.selectedSubSeriesId);
+      if (!exists) this.selectedSubSeriesId = null;
+    } else if (this.availableSubSeries.length === 0) {
+      this.selectedSubSeriesId = null;
     }
   }
 
@@ -302,6 +337,7 @@ export class FigureFormComponent implements OnInit {
       notes: this.notes.trim() || undefined,
       toyLineId: this.selectedToylineId!,
       seriesId: this.selectedSeriesId!,
+      subSeriesId: this.selectedSubSeriesId || null,
       tagIds: this.selectedTagIds,
     };
 

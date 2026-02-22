@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 // GET /api/figures — browse figures (paginated, filterable)
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { toylineId, seriesId, tagIds, search, page = '1', limit = '20' } = req.query;
+    const { toylineId, seriesId, subSeriesId, tagIds, search, page = '1', limit = '20' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -17,6 +17,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
     if (toylineId) where.toyLineId = parseInt(toylineId);
     if (seriesId) where.seriesId = parseInt(seriesId);
+    if (subSeriesId) where.subSeriesId = parseInt(subSeriesId);
     if (search) {
       where.name = { contains: search, mode: 'insensitive' };
     }
@@ -27,6 +28,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
     const include = {
       series: { select: { name: true } },
+      subSeries: { select: { id: true, name: true, slug: true } },
       toyLine: { select: { name: true, slug: true } },
       tags: { include: { tag: true } },
       photos: { where: { isPrimary: true }, take: 1 },
@@ -83,6 +85,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const include = {
       series: true,
+      subSeries: true,
       toyLine: true,
       tags: { include: { tag: true } },
       accessories: { orderBy: { name: 'asc' } },
@@ -136,7 +139,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 // POST /api/figures — create figure (admin only)
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { name, year, notes, toyLineId, seriesId, tagIds } = req.body;
+    const { name, year, notes, toyLineId, seriesId, subSeriesId, tagIds } = req.body;
 
     if (!name || !toyLineId || !seriesId) {
       return res.status(400).json({ error: 'Name, toyLineId, and seriesId are required' });
@@ -149,12 +152,14 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         notes: notes || null,
         toyLineId: parseInt(toyLineId),
         seriesId: parseInt(seriesId),
+        subSeriesId: subSeriesId ? parseInt(subSeriesId) : null,
         tags: tagIds && tagIds.length > 0
           ? { create: tagIds.map((tagId) => ({ tagId: parseInt(tagId) })) }
           : undefined,
       },
       include: {
         series: true,
+        subSeries: true,
         toyLine: true,
         tags: { include: { tag: true } },
         accessories: true,
@@ -181,7 +186,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     const existing = await prisma.figure.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Figure not found' });
 
-    const { name, year, notes, toyLineId, seriesId, tagIds } = req.body;
+    const { name, year, notes, toyLineId, seriesId, subSeriesId, tagIds } = req.body;
 
     const data = {};
     if (name !== undefined) data.name = name;
@@ -189,6 +194,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     if (notes !== undefined) data.notes = notes;
     if (toyLineId !== undefined) data.toyLineId = parseInt(toyLineId);
     if (seriesId !== undefined) data.seriesId = parseInt(seriesId);
+    if (subSeriesId !== undefined) data.subSeriesId = subSeriesId ? parseInt(subSeriesId) : null;
 
     // Update tags: delete existing, create new
     if (tagIds !== undefined) {
@@ -205,6 +211,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       data,
       include: {
         series: true,
+        subSeries: true,
         toyLine: true,
         tags: { include: { tag: true } },
         accessories: true,

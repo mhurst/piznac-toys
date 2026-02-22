@@ -12,11 +12,19 @@ export interface ToyLine {
   tags?: Tag[];
 }
 
+export interface SubSeries {
+  id: number;
+  name: string;
+  slug: string;
+  seriesId: number;
+}
+
 export interface Series {
   id: number;
   name: string;
   slug: string;
   toyLineId: number;
+  subSeries?: SubSeries[];
 }
 
 export interface Tag {
@@ -32,8 +40,10 @@ export interface Figure {
   notes: string | null;
   toyLineId: number;
   seriesId: number;
+  subSeriesId: number | null;
   toyLine: ToyLine;
   series: Series;
+  subSeries: SubSeries | null;
   tags: Tag[];
   accessories: Accessory[];
   photos: Photo[];
@@ -196,6 +206,19 @@ export class ApiService {
     return this.http.delete<void>(`/api/series/${id}`);
   }
 
+  // SubSeries
+  createSubSeries(name: string, seriesId: number): Observable<SubSeries> {
+    return this.http.post<SubSeries>('/api/subseries', { name, seriesId });
+  }
+
+  updateSubSeries(id: number, name: string): Observable<SubSeries> {
+    return this.http.put<SubSeries>(`/api/subseries/${id}`, { name });
+  }
+
+  deleteSubSeries(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/subseries/${id}`);
+  }
+
   // Tags
   createTag(name: string, toyLineId: number): Observable<Tag> {
     return this.http.post<Tag>('/api/tags', { name, toyLineId });
@@ -213,6 +236,7 @@ export class ApiService {
   getFigures(params: {
     toylineId?: number;
     seriesId?: number;
+    subSeriesId?: number;
     tagIds?: number[];
     search?: string;
     page?: number;
@@ -221,6 +245,7 @@ export class ApiService {
     let httpParams = new HttpParams();
     if (params.toylineId) httpParams = httpParams.set('toylineId', params.toylineId.toString());
     if (params.seriesId) httpParams = httpParams.set('seriesId', params.seriesId.toString());
+    if (params.subSeriesId) httpParams = httpParams.set('subSeriesId', params.subSeriesId.toString());
     if (params.tagIds?.length) httpParams = httpParams.set('tagIds', params.tagIds.join(','));
     if (params.search) httpParams = httpParams.set('search', params.search);
     if (params.page) httpParams = httpParams.set('page', params.page.toString());
@@ -239,6 +264,7 @@ export class ApiService {
     notes?: string;
     toyLineId: number;
     seriesId: number;
+    subSeriesId?: number | null;
     tagIds?: number[];
   }): Observable<Figure> {
     return this.http.post<Figure>('/api/figures', data);
@@ -250,6 +276,7 @@ export class ApiService {
     notes?: string | null;
     toyLineId?: number;
     seriesId?: number;
+    subSeriesId?: number | null;
     tagIds?: number[];
   }): Observable<Figure> {
     return this.http.put<Figure>(`/api/figures/${id}`, data);
@@ -297,6 +324,7 @@ export class ApiService {
   getMyCollection(params: {
     toylineId?: number;
     seriesId?: number;
+    subSeriesId?: number;
     search?: string;
     page?: number;
     limit?: number;
@@ -304,6 +332,7 @@ export class ApiService {
     let httpParams = new HttpParams();
     if (params.toylineId) httpParams = httpParams.set('toylineId', params.toylineId.toString());
     if (params.seriesId) httpParams = httpParams.set('seriesId', params.seriesId.toString());
+    if (params.subSeriesId) httpParams = httpParams.set('subSeriesId', params.subSeriesId.toString());
     if (params.search) httpParams = httpParams.set('search', params.search);
     if (params.page) httpParams = httpParams.set('page', params.page.toString());
     if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
