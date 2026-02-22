@@ -1,0 +1,187 @@
+@use 'variables' as *;
+
+// === Responsive breakpoints ===
+@mixin mobile {
+  @media (max-width: $bp-mobile) { @content; }
+}
+
+@mixin tablet {
+  @media (max-width: $bp-tablet) { @content; }
+}
+
+@mixin desktop {
+  @media (min-width: $bp-mobile + 1) { @content; }
+}
+
+// === Layout ===
+@mixin center-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - $toolbar-height);
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin sidebar-layout {
+  display: flex;
+  gap: $space-lg;
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+@mixin sidebar {
+  width: $sidebar-width;
+  flex-shrink: 0;
+  @include mobile {
+    width: 100%;
+  }
+}
+
+// === Grids ===
+@mixin card-grid($min-width: 220px) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax($min-width, 1fr));
+  gap: $space-md;
+}
+
+@mixin photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+// === Cards ===
+@mixin card-image($height: $card-image-height) {
+  height: $height;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $color-primary-bg;
+  position: relative;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+@mixin placeholder-icon($size: 48px) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  mat-icon {
+    font-size: $size;
+    width: $size;
+    height: $size;
+    color: $color-primary;
+    opacity: 0.25;
+  }
+}
+
+// === Typography ===
+@mixin page-heading {
+  color: $color-primary;
+  margin-bottom: $space-lg;
+  font-weight: 700;
+}
+
+@mixin section-heading {
+  color: $color-text;
+  margin: 0 0 $space-md;
+  font-weight: 600;
+}
+
+@mixin section-label {
+  color: $color-text-secondary;
+  font-size: $font-base;
+  text-transform: uppercase;
+  margin: 0 0 $space-sm;
+}
+
+// === Messages ===
+@mixin message-box {
+  padding: 12px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+@mixin error-message {
+  @include message-box;
+  background: $color-error-bg;
+  color: $color-error;
+  margin-bottom: $space-md;
+}
+
+@mixin success-message {
+  @include message-box;
+  background: $color-success-bg;
+  color: $color-success-dark;
+}
+
+// === Forms ===
+@mixin form-card {
+  width: $form-card-width;
+  max-width: 90vw;
+  padding: $space-lg;
+}
+
+@mixin form-column {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}
+
+@mixin form-row {
+  display: flex;
+  gap: $space-md;
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+// === Figures / Collection shared ===
+@mixin owned-badge {
+  position: absolute;
+  top: $space-sm;
+  right: $space-sm;
+  z-index: 2;
+  mat-icon {
+    color: $color-success;
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    background: white;
+    border-radius: 50%;
+  }
+}
+
+@mixin completion-bar {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  font-size: $font-sm;
+  color: $color-text-muted;
+
+  .completion-bar {
+    flex: 1;
+    height: 6px;
+    background: $color-border;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .completion-fill {
+    height: 100%;
+    background: $color-success;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+}

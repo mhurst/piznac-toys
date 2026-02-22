@@ -1,0 +1,52 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.sidenav-container {
+  height: 100vh;
+}
+
+.app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 2px;
+}
+
+.spacer { flex: 1; }
+.active { font-weight: 700; }
+
+.nav-avatar {
+  width: $nav-avatar-size;
+  height: $nav-avatar-size;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-link {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-nav {
+  width: $sidebar-width;
+}
+
+.mobile-menu-btn {
+  display: none;
+}
+
+@include mobile {
+  .desktop-nav { display: none; }
+  .mobile-menu-btn { display: inline-flex; }
+}
+
+@include desktop {
+  .mobile-menu-btn { display: none; }
+}

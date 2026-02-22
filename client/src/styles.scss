@@ -1,4 +1,6 @@
 @use '@angular/material' as mat;
+@use 'variables' as *;
+@use 'mixins' as *;
 
 @include mat.core();
 
@@ -17,28 +19,34 @@ $client-theme: mat.define-theme((
   @include mat.all-component-themes($client-theme);
 }
 
+// === Base ===
 html, body { height: 100%; }
 body {
   margin: 0;
   font-family: 'Roboto', 'Helvetica Neue', sans-serif;
-  background: #f5f5f5;
-  color: #333;
+  background: $color-bg;
+  color: $color-text;
   min-height: 100vh;
 }
 
 a {
-  color: #1565C0;
+  color: $color-primary;
   text-decoration: none;
-  &:hover { text-decoration: underline; color: #0D47A1; }
+  &:hover { text-decoration: underline; color: $color-primary-hover; }
 }
 
+// === Layout ===
 .page-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: $space-lg;
+
+  @include mobile {
+    padding: $space-md;
+  }
 }
 
-// Cards
+// === Cards ===
 .mat-mdc-card {
   border-radius: 8px !important;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -48,9 +56,9 @@ a {
   }
 }
 
-// Toolbar — blue background with white text for everything inside
+// === Toolbar ===
 .app-toolbar.mat-toolbar {
-  background: #1565C0;
+  background: $color-primary;
   color: #fff;
 
   --mdc-text-button-label-text-color: #fff;
@@ -69,8 +77,8 @@ a {
   }
 }
 
-// Scrollbar
+// === Scrollbar ===
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #f5f5f5; }
-::-webkit-scrollbar-thumb { background: #bbb; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #999; }
+::-webkit-scrollbar-track { background: $color-bg; }
+::-webkit-scrollbar-thumb { background: $color-text-placeholder; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: $color-text-disabled; }
