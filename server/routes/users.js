@@ -33,6 +33,32 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/users/public — list all active users (public)
+router.get('/public', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        bio: true,
+        createdAt: true,
+        _count: { select: { collection: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+    const mapped = users.map((u) => ({
+      ...u,
+      _count: { figures: u._count.collection },
+    }));
+    res.json(mapped);
+  } catch (err) {
+    logError('List public users error', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // === NEEDS (missing accessories) drill-down ===
 
 // GET /api/users/:id/needs — toylines with missing accessories

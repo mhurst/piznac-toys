@@ -8,7 +8,7 @@ import { MatListModule } from '@angular/material/list';
 import { AsyncPipe } from '@angular/common';
 import { AuthService } from './core/auth.service';
 import { Router } from '@angular/router';
-import { APP_VERSION } from './core/version';
+import { APP_VERSION, UPDATE_NOTES } from './core/version';
 
 @Component({
   selector: 'app-root',
@@ -21,6 +21,10 @@ import { APP_VERSION } from './core/version';
           <a mat-list-item routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
             <mat-icon matListItemIcon>home</mat-icon>
             <span matListItemTitle>Home</span>
+          </a>
+          <a mat-list-item routerLink="/members" routerLinkActive="active">
+            <mat-icon matListItemIcon>people</mat-icon>
+            <span matListItemTitle>Members</span>
           </a>
           @if (auth.isLoggedIn$ | async) {
             <a mat-list-item routerLink="/admin/collection" routerLinkActive="active">
@@ -67,6 +71,7 @@ import { APP_VERSION } from './core/version';
           <!-- Desktop nav -->
           <div class="desktop-nav">
             <a mat-button routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+            <a mat-button routerLink="/members" routerLinkActive="active">Members</a>
             @if (auth.isLoggedIn$ | async) {
               <a mat-button routerLink="/admin/collection" routerLinkActive="active">My Collection</a>
               <a mat-button [routerLink]="['/user', auth.userId, 'needs']">What I Need</a>
@@ -96,6 +101,19 @@ import { APP_VERSION } from './core/version';
           </button>
         </mat-toolbar>
 
+        @if (!betaDismissed) {
+          <div class="beta-banner">
+            <div class="beta-banner-content">
+              <span class="beta-tag">BETA</span>
+              <span class="version-tag">{{ version }}</span>
+              <span class="beta-notes">{{ latestNote }}</span>
+            </div>
+            <button class="beta-dismiss" (click)="dismissBeta()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        }
+
         <router-outlet></router-outlet>
         <footer class="app-footer">
           <span>Piznac Toys v{{ version }}</span>
@@ -108,6 +126,8 @@ import { APP_VERSION } from './core/version';
 export class AppComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   version = APP_VERSION;
+  betaDismissed = false;
+  latestNote = UPDATE_NOTES[0].date + ' — ' + UPDATE_NOTES[0].note;
 
   constructor(public auth: AuthService, private router: Router) {}
 
@@ -116,6 +136,17 @@ export class AppComponent implements OnInit {
     if (this.auth.isLoggedIn) {
       this.auth.checkSession().subscribe();
     }
+    this.checkBetaBanner();
+  }
+
+  dismissBeta(): void {
+    this.betaDismissed = true;
+    localStorage.setItem('toys-beta-dismissed', UPDATE_NOTES[0].date);
+  }
+
+  private checkBetaBanner(): void {
+    const dismissed = localStorage.getItem('toys-beta-dismissed');
+    this.betaDismissed = dismissed === UPDATE_NOTES[0].date;
   }
 
   logout(): void {

@@ -65,6 +65,63 @@
   .mobile-menu-btn { display: none; }
 }
 
+.beta-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 32px;
+  background: linear-gradient(90deg, rgba(#1565C0, 0.12), rgba(#1565C0, 0.25));
+  border-bottom: 1px solid rgba(#1565C0, 0.2);
+}
+
+.beta-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.beta-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #fff;
+  background: #1565C0;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.version-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+.beta-notes {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.beta-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  display: flex;
+  transition: color 0.2s;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    color: #333;
+  }
+}
+
 .app-footer {
   text-align: center;
   padding: 24px 16px;

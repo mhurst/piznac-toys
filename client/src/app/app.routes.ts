@@ -50,6 +50,10 @@ export const routes: Routes = [
     loadComponent: () => import('./public/user-profile/user-profile.component').then((m) => m.UserProfileComponent),
   },
   {
+    path: 'members',
+    loadComponent: () => import('./public/members/members.component').then((m) => m.MembersComponent),
+  },
+  {
     path: 'login',
     loadComponent: () => import('./admin/login/login.component').then((m) => m.LoginComponent),
   },

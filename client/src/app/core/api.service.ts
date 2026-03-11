@@ -396,6 +396,10 @@ export class ApiService {
     return this.http.get<FigurePage>(`/api/users/${userId}/collection`, { params: httpParams });
   }
 
+  getPublicUsers(): Observable<PublicProfile[]> {
+    return this.http.get<PublicProfile[]>('/api/users/public');
+  }
+
   getPublicProfile(id: number): Observable<PublicProfile> {
     return this.http.get<PublicProfile>(`/api/users/${id}`);
   }
