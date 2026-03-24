@@ -31,6 +31,21 @@ export const routes: Routes = [
     data: { mode: 'needs' },
   },
   {
+    path: 'user/:id/missing',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'missing' },
+  },
+  {
+    path: 'user/:id/missing/:toylineSlug',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'missing' },
+  },
+  {
+    path: 'user/:id/missing/:toylineSlug/:seriesSlug',
+    loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
+    data: { mode: 'missing' },
+  },
+  {
     path: 'user/:id/for-sale',
     loadComponent: () => import('./public/user-drill-down/user-drill-down.component').then((m) => m.UserDrillDownComponent),
     data: { mode: 'for-sale' },

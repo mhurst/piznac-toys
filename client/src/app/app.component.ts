@@ -39,6 +39,10 @@ import { APP_VERSION, UPDATE_NOTES } from './core/version';
               <mat-icon matListItemIcon>sell</mat-icon>
               <span matListItemTitle>For Sale / Trade</span>
             </a>
+            <a mat-list-item [routerLink]="['/user', auth.userId, 'missing']">
+              <mat-icon matListItemIcon>search_off</mat-icon>
+              <span matListItemTitle>Missing Figures</span>
+            </a>
             @if (auth.isAdmin) {
               <a mat-list-item routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
                 <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
@@ -76,6 +80,7 @@ import { APP_VERSION, UPDATE_NOTES } from './core/version';
               <a mat-button routerLink="/admin/collection" routerLinkActive="active">My Collection</a>
               <a mat-button [routerLink]="['/user', auth.userId, 'needs']">What I Need</a>
               <a mat-button [routerLink]="['/user', auth.userId, 'for-sale']">For Sale / Trade</a>
+              <a mat-button [routerLink]="['/user', auth.userId, 'missing']">Missing</a>
               @if (auth.isAdmin) {
                 <a mat-button routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Admin</a>
               }

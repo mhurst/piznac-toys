@@ -190,6 +190,129 @@ router.get('/:id/needs/:toylineSlug/:seriesSlug', async (req, res) => {
   }
 });
 
+// === MISSING FIGURES drill-down ===
+
+// GET /api/users/:id/missing — toylines with missing figures
+router.get('/:id/missing', async (req, res) => {
+  try {
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        collectors: { none: { userId } },
+      },
+      include: { toyLine: true },
+    });
+
+    const toylineMap = {};
+    for (const f of figures) {
+      if (!toylineMap[f.toyLineId]) {
+        toylineMap[f.toyLineId] = {
+          name: f.toyLine.name,
+          slug: f.toyLine.slug,
+          coverImage: f.toyLine.coverImage,
+          itemCount: 0,
+        };
+      }
+      toylineMap[f.toyLineId].itemCount++;
+    }
+
+    res.json(Object.values(toylineMap));
+  } catch (err) {
+    logError('Get user missing error', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/users/:id/missing/:toylineSlug — series with missing figure counts
+router.get('/:id/missing/:toylineSlug', async (req, res) => {
+  try {
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
+    const { toylineSlug } = req.params;
+
+    const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
+    if (!toyline) return res.status(404).json({ error: 'Toyline not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        toyLineId: toyline.id,
+        collectors: { none: { userId } },
+      },
+      include: { series: true },
+    });
+
+    const seriesMap = {};
+    for (const f of figures) {
+      if (!seriesMap[f.seriesId]) {
+        seriesMap[f.seriesId] = {
+          name: f.series.name,
+          slug: f.series.slug,
+          itemCount: 0,
+        };
+      }
+      seriesMap[f.seriesId].itemCount++;
+    }
+
+    res.json({
+      toyline: { name: toyline.name, slug: toyline.slug },
+      series: Object.values(seriesMap),
+    });
+  } catch (err) {
+    logError('Get user missing by toyline error', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/users/:id/missing/:toylineSlug/:seriesSlug — missing figures in series
+router.get('/:id/missing/:toylineSlug/:seriesSlug', async (req, res) => {
+  try {
+    const userId = parseId(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Invalid ID' });
+    const { toylineSlug, seriesSlug } = req.params;
+
+    const toyline = await prisma.toyLine.findUnique({ where: { slug: toylineSlug } });
+    if (!toyline) return res.status(404).json({ error: 'Toyline not found' });
+
+    const series = await prisma.series.findUnique({
+      where: { toyLineId_slug: { toyLineId: toyline.id, slug: seriesSlug } },
+    });
+    if (!series) return res.status(404).json({ error: 'Series not found' });
+
+    const figures = await prisma.figure.findMany({
+      where: {
+        toyLineId: toyline.id,
+        seriesId: series.id,
+        collectors: { none: { userId } },
+      },
+      orderBy: { name: 'asc' },
+      include: {
+        subSeries: { select: { id: true, name: true } },
+        photos: { where: { isPrimary: true }, take: 1 },
+      },
+    });
+
+    const result = figures.map((f) => ({
+      id: f.id,
+      name: f.name,
+      subSeries: f.subSeries,
+      primaryPhoto: f.photos[0] || null,
+    }));
+
+    res.json({
+      toyline: { name: toyline.name, slug: toyline.slug },
+      series: { name: series.name, slug: series.slug },
+      figures: result,
+    });
+  } catch (err) {
+    logError('Get user missing by series error', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // === FOR SALE/TRADE drill-down ===
 
 // GET /api/users/:id/for-sale — toylines with for-sale items

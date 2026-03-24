@@ -152,6 +152,13 @@ export interface ForSaleFigure {
   forSaleAccessories: { id: number; name: string }[];
 }
 
+export interface MissingFigure {
+  id: number;
+  name: string;
+  primaryPhoto: Photo | null;
+  subSeries: { id: number; name: string } | null;
+}
+
 export interface PriceData {
   avgPrice: number | null;
   lowPrice: number | null;
@@ -239,6 +246,7 @@ export class ApiService {
     subSeriesId?: number;
     tagIds?: number[];
     search?: string;
+    missing?: boolean;
     page?: number;
     limit?: number;
   }): Observable<FigurePage> {
@@ -248,6 +256,7 @@ export class ApiService {
     if (params.subSeriesId) httpParams = httpParams.set('subSeriesId', params.subSeriesId.toString());
     if (params.tagIds?.length) httpParams = httpParams.set('tagIds', params.tagIds.join(','));
     if (params.search) httpParams = httpParams.set('search', params.search);
+    if (params.missing) httpParams = httpParams.set('missing', 'true');
     if (params.page) httpParams = httpParams.set('page', params.page.toString());
     if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
 
@@ -437,6 +446,19 @@ export class ApiService {
 
   getUserNeedsBySeries(userId: number, tlSlug: string, sSlug: string): Observable<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: NeedsFigure[] }> {
     return this.http.get<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: NeedsFigure[] }>(`/api/users/${userId}/needs/${tlSlug}/${sSlug}`);
+  }
+
+  // Missing figures drill-down
+  getUserMissing(userId: number): Observable<DrillDownToyline[]> {
+    return this.http.get<DrillDownToyline[]>(`/api/users/${userId}/missing`);
+  }
+
+  getUserMissingByToyline(userId: number, slug: string): Observable<{ toyline: { name: string; slug: string }; series: DrillDownSeries[] }> {
+    return this.http.get<{ toyline: { name: string; slug: string }; series: DrillDownSeries[] }>(`/api/users/${userId}/missing/${slug}`);
+  }
+
+  getUserMissingBySeries(userId: number, tlSlug: string, sSlug: string): Observable<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: MissingFigure[] }> {
+    return this.http.get<{ toyline: { name: string; slug: string }; series: { name: string; slug: string }; figures: MissingFigure[] }>(`/api/users/${userId}/missing/${tlSlug}/${sSlug}`);
   }
 
   // For Sale/Trade drill-down

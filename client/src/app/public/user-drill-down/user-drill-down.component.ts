@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import {
   ApiService, DrillDownToyline, DrillDownSeries,
-  NeedsFigure, ForSaleFigure, PublicProfile,
+  NeedsFigure, ForSaleFigure, MissingFigure, PublicProfile,
 } from '../../core/api.service';
 
 @Component({
@@ -28,12 +28,12 @@ import {
         </div>
       }
 
-      <h1>{{ mode === 'needs' ? 'What I Need' : 'For Sale / Trade' }}</h1>
+      <h1>{{ mode === 'needs' ? 'What I Need' : mode === 'missing' ? 'Missing Figures' : 'For Sale / Trade' }}</h1>
 
       <!-- Level 1: Toylines -->
       @if (level === 1) {
         @if (toylines.length === 0) {
-          <p class="empty">{{ mode === 'needs' ? 'No missing accessories!' : 'Nothing for sale or trade.' }}</p>
+          <p class="empty">{{ mode === 'needs' ? 'No missing accessories!' : mode === 'missing' ? 'No missing figures!' : 'Nothing for sale or trade.' }}</p>
         }
         <div class="card-grid">
           @for (tl of toylines; track tl.slug) {
@@ -136,6 +136,31 @@ import {
           </mat-card>
         }
       }
+
+      @if (level === 3 && mode === 'missing') {
+        @if (missingFigures.length === 0) {
+          <p class="empty">No missing figures in this series.</p>
+        }
+        @for (fig of missingFigures; track fig.id) {
+          <mat-card class="figure-row">
+            <a [routerLink]="['/figure', fig.id]" class="figure-link">
+              <div class="figure-thumb">
+                @if (fig.primaryPhoto) {
+                  <img [src]="'/uploads/' + fig.primaryPhoto.filename" [alt]="fig.name">
+                } @else {
+                  <mat-icon>image</mat-icon>
+                }
+              </div>
+              <div class="figure-info">
+                <h3>{{ fig.name }}</h3>
+                @if (fig.subSeries) {
+                  <p class="sub-series-name">{{ fig.subSeries.name }}</p>
+                }
+              </div>
+            </a>
+          </mat-card>
+        }
+      }
     </div>
   `,
   styles: [`
@@ -202,6 +227,7 @@ import {
     .figure-info {
       h3 { margin: 0 0 8px; color: #333; font-size: 1rem; }
     }
+    .sub-series-name { color: #777; font-size: 0.85rem; margin: 0; }
     .items-list { display: flex; flex-wrap: wrap; gap: 6px; }
     .for-sale-badge {
       font-size: 0.75rem;
@@ -215,7 +241,7 @@ import {
   `],
 })
 export class UserDrillDownComponent implements OnInit {
-  mode: 'needs' | 'for-sale' = 'needs';
+  mode: 'needs' | 'for-sale' | 'missing' = 'needs';
   level = 1;
   userId = 0;
   userName = '';
@@ -227,6 +253,7 @@ export class UserDrillDownComponent implements OnInit {
   seriesList: DrillDownSeries[] = [];
   needsFigures: NeedsFigure[] = [];
   forSaleFigures: ForSaleFigure[] = [];
+  missingFigures: MissingFigure[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -260,6 +287,8 @@ export class UserDrillDownComponent implements OnInit {
   private loadData(seriesSlug: string): void {
     if (this.mode === 'needs') {
       this.loadNeeds(seriesSlug);
+    } else if (this.mode === 'missing') {
+      this.loadMissing(seriesSlug);
     } else {
       this.loadForSale(seriesSlug);
     }
@@ -280,6 +309,25 @@ export class UserDrillDownComponent implements OnInit {
         this.toylineName = data.toyline.name;
         this.seriesName = data.series.name;
         this.needsFigures = data.figures;
+      });
+    }
+  }
+
+  private loadMissing(seriesSlug: string): void {
+    if (this.level === 1) {
+      this.api.getUserMissing(this.userId).subscribe((data) => {
+        this.toylines = data;
+      });
+    } else if (this.level === 2) {
+      this.api.getUserMissingByToyline(this.userId, this.toylineSlug).subscribe((data) => {
+        this.toylineName = data.toyline.name;
+        this.seriesList = data.series;
+      });
+    } else {
+      this.api.getUserMissingBySeries(this.userId, this.toylineSlug, seriesSlug).subscribe((data) => {
+        this.toylineName = data.toyline.name;
+        this.seriesName = data.series.name;
+        this.missingFigures = data.figures;
       });
     }
   }

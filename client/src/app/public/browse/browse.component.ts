@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { ApiService, ToyLine, Series, SubSeries, Tag, Figure } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-browse',
@@ -65,6 +66,14 @@ import { ApiService, ToyLine, Series, SubSeries, Tag, Figure } from '../../core/
                   </mat-chip-option>
                 }
               </mat-chip-listbox>
+            </div>
+          }
+          @if (auth.isLoggedIn) {
+            <div class="missing-toggle">
+              <label>
+                <input type="checkbox" [(ngModel)]="showMissingOnly" (change)="onFilterChange()">
+                Show missing only
+              </label>
             </div>
           }
         </aside>
@@ -130,6 +139,22 @@ import { ApiService, ToyLine, Series, SubSeries, Tag, Figure } from '../../core/
     .full-width { width: 100%; }
     .tag-section {
       h4 { color: #555; margin: 0 0 8px; font-size: 0.85rem; text-transform: uppercase; }
+    }
+    .missing-toggle {
+      margin-top: 16px;
+      padding: 12px;
+      background: #fff3e0;
+      border-radius: 8px;
+      label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: #e65100;
+        font-weight: 500;
+      }
+      input[type="checkbox"] { accent-color: #e65100; width: 16px; height: 16px; }
     }
     .figures-grid {
       flex: 1;
@@ -198,13 +223,14 @@ export class BrowseComponent implements OnInit, OnDestroy {
   selectedSeriesId: number | null = null;
   selectedSubSeriesId: number | null = null;
   selectedTagIds: number[] = [];
+  showMissingOnly = false;
 
   private updating = false;
   private restoringFromUrl = false;
   private sub!: Subscription;
   private currentSlug = '';
 
-  constructor(private route: ActivatedRoute, private router: Router, private api: ApiService) {}
+  constructor(private route: ActivatedRoute, private router: Router, private api: ApiService, public auth: AuthService) {}
 
   ngOnInit(): void {
     this.sub = combineLatest([this.route.params, this.route.queryParams]).subscribe(
@@ -219,6 +245,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
         this.selectedSeriesId = qp['series'] ? +qp['series'] : null;
         this.selectedSubSeriesId = qp['subseries'] ? +qp['subseries'] : null;
         this.selectedTagIds = qp['tags'] ? qp['tags'].split(',').map(Number) : [];
+        this.showMissingOnly = qp['missing'] === 'true';
         this.currentPage = qp['page'] ? +qp['page'] : 1;
 
         if (needsReload) {
@@ -261,6 +288,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
       subSeriesId: this.selectedSubSeriesId || undefined,
       tagIds: this.selectedTagIds.length ? this.selectedTagIds : undefined,
       search: this.search || undefined,
+      missing: this.showMissingOnly || undefined,
       page: this.currentPage,
       limit: this.pageSize,
     }).subscribe((result) => {
@@ -310,6 +338,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
     if (this.selectedSeriesId) queryParams.series = this.selectedSeriesId;
     if (this.selectedSubSeriesId) queryParams.subseries = this.selectedSubSeriesId;
     if (this.selectedTagIds.length) queryParams.tags = this.selectedTagIds.join(',');
+    if (this.showMissingOnly) queryParams.missing = 'true';
     if (this.currentPage > 1) queryParams.page = this.currentPage;
 
     this.updating = true;

@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 // GET /api/figures — browse figures (paginated, filterable)
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { toylineId, seriesId, subSeriesId, tagIds, search, page = '1', limit = '20' } = req.query;
+    const { toylineId, seriesId, subSeriesId, tagIds, search, missing, page = '1', limit = '20' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -24,6 +24,10 @@ router.get('/', optionalAuth, async (req, res) => {
     if (tagIds) {
       const ids = tagIds.split(',').map(Number);
       where.tags = { some: { tagId: { in: ids } } };
+    }
+    // Filter to only figures NOT in the user's collection
+    if (missing === 'true' && req.userId) {
+      where.collectors = { none: { userId: req.userId } };
     }
 
     const include = {
