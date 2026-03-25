@@ -55,6 +55,16 @@ import { AuthService } from '../../core/auth.service';
               </mat-select>
             </mat-form-field>
           }
+          @if (auth.isLoggedIn) {
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Sort by</mat-label>
+              <mat-select [(ngModel)]="selectedSort" (selectionChange)="onFilterChange()">
+                <mat-option value="">Name</mat-option>
+                <mat-option value="owned">Owned first</mat-option>
+                <mat-option value="missing">Missing first</mat-option>
+              </mat-select>
+            </mat-form-field>
+          }
           @if (tags.length > 0) {
             <div class="tag-section">
               <h4>Tags</h4>
@@ -69,14 +79,6 @@ import { AuthService } from '../../core/auth.service';
             </div>
           }
           @if (auth.isLoggedIn) {
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Sort by</mat-label>
-              <mat-select [(ngModel)]="selectedSort" (selectionChange)="onFilterChange()">
-                <mat-option value="">Name</mat-option>
-                <mat-option value="owned">Owned first</mat-option>
-                <mat-option value="missing">Missing first</mat-option>
-              </mat-select>
-            </mat-form-field>
             <div class="missing-toggle">
               <label>
                 <input type="checkbox" [(ngModel)]="showMissingOnly" (change)="onFilterChange()">
