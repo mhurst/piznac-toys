@@ -58,7 +58,7 @@ import { AuthService } from '../../core/auth.service';
           @if (tags.length > 0) {
             <div class="tag-section">
               <h4>Tags</h4>
-              <mat-chip-listbox multiple (change)="onFilterChange()">
+              <mat-chip-listbox multiple>
                 @for (tag of tags; track tag.id) {
                   <mat-chip-option [selected]="selectedTagIds.includes(tag.id)"
                                    (selectionChange)="toggleTag(tag.id)">
