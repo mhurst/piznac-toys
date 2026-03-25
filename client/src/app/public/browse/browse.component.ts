@@ -3,7 +3,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription, combineLatest } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
+import { MatChipsModule, MatChipSelectionChange } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -61,7 +61,7 @@ import { AuthService } from '../../core/auth.service';
               <mat-chip-listbox multiple>
                 @for (tag of tags; track tag.id) {
                   <mat-chip-option [selected]="selectedTagIds.includes(tag.id)"
-                                   (selectionChange)="toggleTag(tag.id)">
+                                   (selectionChange)="toggleTag(tag.id, $event)">
                     {{ tag.name }}
                   </mat-chip-option>
                 }
@@ -315,8 +315,8 @@ export class BrowseComponent implements OnInit, OnDestroy {
     this.updateUrl();
   }
 
-  toggleTag(tagId: number): void {
-    if (this.restoringFromUrl) return;
+  toggleTag(tagId: number, event: MatChipSelectionChange): void {
+    if (!event.isUserInput) return;
     const idx = this.selectedTagIds.indexOf(tagId);
     if (idx >= 0) {
       this.selectedTagIds.splice(idx, 1);
