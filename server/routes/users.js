@@ -477,27 +477,51 @@ router.get('/:id/collection', async (req, res) => {
       where.figure = figureWhere;
     }
 
-    const [items, total] = await Promise.all([
-      prisma.userFigure.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { figure: { name: 'asc' } },
-        include: {
-          figure: {
-            include: {
-              series: { select: { name: true } },
-              toyLine: { select: { name: true, slug: true } },
-              photos: { where: { isPrimary: true }, take: 1 },
-              _count: { select: { accessories: true } },
-            },
+    // Get all matching IDs with photo status for sorting
+    const allItems = await prisma.userFigure.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        figureId: true,
+        createdAt: true,
+        figure: {
+          select: { photos: { where: { isPrimary: true }, take: 1 } },
+        },
+      },
+    });
+
+    // Sort: has photo first, then most recently added
+    allItems.sort((a, b) => {
+      const aHasPhoto = a.figure.photos.length > 0 ? 1 : 0;
+      const bHasPhoto = b.figure.photos.length > 0 ? 1 : 0;
+      if (bHasPhoto !== aHasPhoto) return bHasPhoto - aHasPhoto;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    const total = allItems.length;
+    const pageIds = allItems.slice(skip, skip + take).map((i) => i.figureId);
+
+    // Fetch full records for this page
+    const fullItems = await prisma.userFigure.findMany({
+      where: { userId, figureId: { in: pageIds } },
+      include: {
+        figure: {
+          include: {
+            series: { select: { name: true } },
+            toyLine: { select: { name: true, slug: true } },
+            photos: { where: { isPrimary: true }, take: 1 },
+            _count: { select: { accessories: true } },
           },
         },
-      }),
-      prisma.userFigure.count({ where }),
-    ]);
+      },
+    });
 
-    const figures = items.map((uf) => ({
+    // Restore sorted order
+    const recordMap = {};
+    for (const item of fullItems) recordMap[item.figureId] = item;
+    const orderedItems = pageIds.map((id) => recordMap[id]).filter(Boolean);
+
+    const figures = orderedItems.map((uf) => ({
       ...uf.figure,
       primaryPhoto: uf.figure.photos[0] || null,
       accessoryCount: uf.figure._count.accessories,
