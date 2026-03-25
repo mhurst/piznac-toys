@@ -341,6 +341,16 @@ export class BrowseComponent implements OnInit, OnDestroy {
     if (this.showMissingOnly) queryParams.missing = 'true';
     if (this.currentPage > 1) queryParams.page = this.currentPage;
 
+    // Bail out if URL params already match to prevent loops
+    const currentQp = this.route.snapshot.queryParams;
+    const same = (queryParams.search || '') === (currentQp['search'] || '')
+      && (queryParams.series || '') === (currentQp['series'] || '')
+      && (queryParams.subseries || '') === (currentQp['subseries'] || '')
+      && (queryParams.tags || '') === (currentQp['tags'] || '')
+      && (queryParams.missing || '') === (currentQp['missing'] || '')
+      && (queryParams.page || '') === (currentQp['page'] || '');
+    if (same) return;
+
     this.updating = true;
     this.router.navigate([], {
       relativeTo: this.route,
