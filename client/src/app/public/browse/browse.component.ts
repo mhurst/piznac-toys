@@ -69,6 +69,14 @@ import { AuthService } from '../../core/auth.service';
             </div>
           }
           @if (auth.isLoggedIn) {
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Sort by</mat-label>
+              <mat-select [(ngModel)]="selectedSort" (selectionChange)="onFilterChange()">
+                <mat-option value="">Name</mat-option>
+                <mat-option value="owned">Owned first</mat-option>
+                <mat-option value="missing">Missing first</mat-option>
+              </mat-select>
+            </mat-form-field>
             <div class="missing-toggle">
               <label>
                 <input type="checkbox" [(ngModel)]="showMissingOnly" (change)="onFilterChange()">
@@ -224,6 +232,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
   selectedSubSeriesId: number | null = null;
   selectedTagIds: number[] = [];
   showMissingOnly = false;
+  selectedSort = '';
 
   private updating = false;
   private restoringFromUrl = false;
@@ -246,6 +255,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
         this.selectedSubSeriesId = qp['subseries'] ? +qp['subseries'] : null;
         this.selectedTagIds = qp['tags'] ? qp['tags'].split(',').map(Number) : [];
         this.showMissingOnly = qp['missing'] === 'true';
+        this.selectedSort = qp['sort'] || '';
         this.currentPage = qp['page'] ? +qp['page'] : 1;
 
         if (needsReload) {
@@ -289,6 +299,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
       tagIds: this.selectedTagIds.length ? this.selectedTagIds : undefined,
       search: this.search || undefined,
       missing: this.showMissingOnly || undefined,
+      sort: this.selectedSort || undefined,
       page: this.currentPage,
       limit: this.pageSize,
     }).subscribe((result) => {
@@ -339,6 +350,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
     if (this.selectedSubSeriesId) queryParams.subseries = this.selectedSubSeriesId;
     if (this.selectedTagIds.length) queryParams.tags = this.selectedTagIds.join(',');
     if (this.showMissingOnly) queryParams.missing = 'true';
+    if (this.selectedSort) queryParams.sort = this.selectedSort;
     if (this.currentPage > 1) queryParams.page = this.currentPage;
 
     // Bail out if URL params already match to prevent loops
@@ -348,6 +360,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
       && (queryParams.subseries || '') === (currentQp['subseries'] || '')
       && (queryParams.tags || '') === (currentQp['tags'] || '')
       && (queryParams.missing || '') === (currentQp['missing'] || '')
+      && (queryParams.sort || '') === (currentQp['sort'] || '')
       && (queryParams.page || '') === (currentQp['page'] || '');
     if (same) return;
 

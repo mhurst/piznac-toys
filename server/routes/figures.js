@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 // GET /api/figures — browse figures (paginated, filterable)
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { toylineId, seriesId, subSeriesId, tagIds, search, missing, page = '1', limit = '20' } = req.query;
+    const { toylineId, seriesId, subSeriesId, tagIds, search, missing, sort, page = '1', limit = '20' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -49,16 +49,56 @@ router.get('/', optionalAuth, async (req, res) => {
       };
     }
 
-    const [figures, total] = await Promise.all([
-      prisma.figure.findMany({
+    let figures;
+    let total;
+
+    // Sort by collection status requires special handling
+    if ((sort === 'owned' || sort === 'missing') && req.userId) {
+      // Get all matching figure IDs with owned status
+      const allFigures = await prisma.figure.findMany({
         where,
-        skip,
-        take,
         orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          collectors: { where: { userId: req.userId }, select: { userId: true } },
+        },
+      });
+
+      total = allFigures.length;
+
+      // Sort: owned first or missing first, then by original order (name)
+      allFigures.sort((a, b) => {
+        const aOwned = a.collectors.length > 0 ? 1 : 0;
+        const bOwned = b.collectors.length > 0 ? 1 : 0;
+        if (sort === 'owned') return bOwned - aOwned;
+        return aOwned - bOwned;
+      });
+
+      // Paginate the sorted IDs
+      const pageIds = allFigures.slice(skip, skip + take).map((f) => f.id);
+
+      // Fetch full records for this page, preserving sort order
+      const fullRecords = await prisma.figure.findMany({
+        where: { id: { in: pageIds } },
         include,
-      }),
-      prisma.figure.count({ where }),
-    ]);
+      });
+
+      // Restore the sorted order
+      const recordMap = {};
+      for (const r of fullRecords) recordMap[r.id] = r;
+      figures = pageIds.map((id) => recordMap[id]).filter(Boolean);
+    } else {
+      [figures, total] = await Promise.all([
+        prisma.figure.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { name: 'asc' },
+          include,
+        }),
+        prisma.figure.count({ where }),
+      ]);
+    }
 
     const mapped = figures.map((f) => ({
       ...f,

@@ -247,6 +247,7 @@ export class ApiService {
     tagIds?: number[];
     search?: string;
     missing?: boolean;
+    sort?: string;
     page?: number;
     limit?: number;
   }): Observable<FigurePage> {
@@ -257,6 +258,7 @@ export class ApiService {
     if (params.tagIds?.length) httpParams = httpParams.set('tagIds', params.tagIds.join(','));
     if (params.search) httpParams = httpParams.set('search', params.search);
     if (params.missing) httpParams = httpParams.set('missing', 'true');
+    if (params.sort) httpParams = httpParams.set('sort', params.sort);
     if (params.page) httpParams = httpParams.set('page', params.page.toString());
     if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
 
