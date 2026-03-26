@@ -58,6 +58,7 @@ export interface Figure {
 export interface Accessory {
   id: number;
   name: string;
+  image: string | null;
   figureId: number;
   owned?: boolean;
   forSale?: boolean;

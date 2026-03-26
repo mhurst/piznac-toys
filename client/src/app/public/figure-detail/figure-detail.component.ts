@@ -5,7 +5,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatListModule } from '@angular/material/list';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -17,7 +16,7 @@ import { AuthService } from '../../core/auth.service';
   standalone: true,
   imports: [
     RouterLink, FormsModule, MatCardModule, MatChipsModule, MatIconModule,
-    MatButtonModule, MatListModule, MatCheckboxModule, MatFormFieldModule, MatInputModule,
+    MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule,
   ],
   template: `
     <div class="page-container">
@@ -184,33 +183,44 @@ import { AuthService } from '../../core/auth.service';
                 }
               </h3>
               @if (figure.accessories.length > 0) {
-                <mat-list>
+                <div class="acc-grid">
                   @for (acc of figure.accessories; track acc.id) {
-                    <mat-list-item>
-                      @if (auth.isLoggedIn && figure.inCollection) {
-                        <mat-checkbox [checked]="acc.owned"
-                                      (change)="toggleAccessory(acc)"
-                                      matListItemIcon>
-                        </mat-checkbox>
-                      } @else {
-                        <mat-icon matListItemIcon [class.owned]="acc.owned">
-                          {{ acc.owned ? 'check_circle' : 'radio_button_unchecked' }}
-                        </mat-icon>
-                      }
-                      <span [class.not-owned]="!acc.owned">{{ acc.name }}</span>
-                      @if (auth.isLoggedIn && figure.inCollection && acc.owned) {
-                        <mat-checkbox [checked]="acc.forSale" (change)="toggleAccessoryForSale(acc)" class="acc-for-sale">
-                          For Sale
-                        </mat-checkbox>
-                      }
-                      @if (auth.isAdmin) {
-                        <button mat-icon-button class="delete-acc-btn" (click)="deleteAccessory(acc)">
-                          <mat-icon>close</mat-icon>
-                        </button>
-                      }
-                    </mat-list-item>
+                    <div class="acc-card" [class.not-owned]="!acc.owned">
+                      <div class="acc-img">
+                        @if (acc.image) {
+                          <img [src]="'/uploads/' + acc.image" [alt]="acc.name">
+                        } @else {
+                          <mat-icon>extension</mat-icon>
+                        }
+                      </div>
+                      <div class="acc-info">
+                        <span class="acc-name">{{ acc.name }}</span>
+                        <div class="acc-actions">
+                          @if (auth.isLoggedIn && figure.inCollection) {
+                            <mat-checkbox [checked]="acc.owned"
+                                          (change)="toggleAccessory(acc)">
+                              Owned
+                            </mat-checkbox>
+                            @if (acc.owned) {
+                              <mat-checkbox [checked]="acc.forSale" (change)="toggleAccessoryForSale(acc)" class="acc-for-sale">
+                                For Sale
+                              </mat-checkbox>
+                            }
+                          } @else {
+                            <mat-icon class="acc-status" [class.owned]="acc.owned">
+                              {{ acc.owned ? 'check_circle' : 'radio_button_unchecked' }}
+                            </mat-icon>
+                          }
+                          @if (auth.isAdmin) {
+                            <button mat-icon-button class="delete-acc-btn" (click)="deleteAccessory(acc)">
+                              <mat-icon>close</mat-icon>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    </div>
                   }
-                </mat-list>
+                </div>
               } @else {
                 <p class="no-accessories">No accessories added yet.</p>
               }
@@ -310,7 +320,6 @@ import { AuthService } from '../../core/auth.service';
     }
     .collection-actions { margin-bottom: 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
     .for-sale-toggle { font-size: 0.85rem; }
-    .acc-for-sale { margin-left: auto; font-size: 0.8rem; }
     .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
     .notes {
       margin-bottom: 24px;
@@ -318,7 +327,56 @@ import { AuthService } from '../../core/auth.service';
       p { color: #333; line-height: 1.6; }
     }
     .accessories {
-      h3 { color: #555; font-size: 0.85rem; text-transform: uppercase; margin: 0 0 8px; }
+      h3 { color: #555; font-size: 0.85rem; text-transform: uppercase; margin: 0 0 12px; }
+    }
+    .acc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .acc-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      transition: border-color 0.2s;
+      &.not-owned { opacity: 0.5; }
+      &:hover { border-color: #90CAF9; }
+    }
+    .acc-img {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      img { width: 100%; height: 100%; object-fit: contain; }
+      mat-icon { font-size: 40px; width: 40px; height: 40px; color: #ccc; }
+    }
+    .acc-info {
+      padding: 8px;
+    }
+    .acc-name {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #333;
+      line-height: 1.3;
+      margin-bottom: 4px;
+    }
+    .acc-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      font-size: 0.75rem;
+    }
+    .acc-status { font-size: 18px; width: 18px; height: 18px; }
+    .acc-for-sale { font-size: 0.75rem; }
+    .delete-acc-btn {
+      margin-left: auto;
+      width: 28px; height: 28px; line-height: 28px;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
     }
     .market-value {
       margin-bottom: 24px;
@@ -344,7 +402,6 @@ import { AuthService } from '../../core/auth.service';
     .price-query { font-size: 0.75rem; color: #aaa; font-style: italic; }
     .refresh-btn { margin-top: 8px; font-size: 0.8rem; }
     .owned { color: #4caf50; }
-    .not-owned { color: #ccc; }
     @media (max-width: 768px) {
       .detail-layout { flex-direction: column; }
       .gallery { max-width: 100%; }

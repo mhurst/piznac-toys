@@ -130,6 +130,7 @@ model FigureTag {
 model Accessory {
   id       Int     @id @default(autoincrement())
   name     String
+  image    String?
   figureId Int
   figure   Figure  @relation(fields: [figureId], references: [id], onDelete: Cascade)
   userStatuses UserAccessory[]
