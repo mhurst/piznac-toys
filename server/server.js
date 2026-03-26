@@ -129,6 +129,20 @@ app.get('/api/stats', optionalAuth, async (req, res) => {
   }
 });
 
+// Sync-upload endpoint for pushing local images to production
+const multer = require('multer');
+const { requireAuth, requireAdmin } = require('./middleware/auth');
+const syncUpload = multer({ dest: path.join(__dirname, 'uploads', 'tmp') });
+app.post('/api/sync-upload', requireAuth, requireAdmin, syncUpload.single('file'), (req, res) => {
+  if (!req.file || !req.body.filename) {
+    return res.status(400).json({ error: 'file and filename required' });
+  }
+  const dest = path.join(__dirname, 'uploads', req.body.filename);
+  const fs = require('fs');
+  fs.renameSync(req.file.path, dest);
+  res.json({ ok: true, filename: req.body.filename });
+});
+
 // Serve Angular app in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist', 'client', 'browser');
 app.use(express.static(clientDist));

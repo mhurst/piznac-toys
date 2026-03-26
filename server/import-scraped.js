@@ -127,38 +127,49 @@ async function main() {
     // Check for URL-scoped name overrides first
     const urlOverride = URL_NAME_OVERRIDES.find((o) => url.includes(o.urlMatch));
 
-    // Find the main figure in DB — try each set figure name
-    let figure = null;
-    let mainSetFig = null;
+    // Match ALL set figures to DB figures (supports multi-figure sets like patrols)
+    const matchedFigures = []; // { figure, setFig }
     const matchedFigureNames = new Set();
 
-    if (urlOverride && figureByName[urlOverride.dbName]) {
-      // URL override takes priority
-      figure = figureByName[urlOverride.dbName];
-      mainSetFig = data.setFigures[0];
-      if (mainSetFig) matchedFigureNames.add(mainSetFig.name);
-    } else {
-      for (const setFig of data.setFigures) {
-        const dbName = FIGURE_NAME_MAP[setFig.name] || setFig.name;
-        if (figureByName[dbName]) {
-          figure = figureByName[dbName];
-          mainSetFig = setFig;
-          matchedFigureNames.add(setFig.name);
-          break;
-        }
+    for (const setFig of data.setFigures) {
+      // Skip alternate views — these aren't separate figures
+      const ln = setFig.name.toLowerCase();
+      if (ln.includes(' - robot') || ln.includes(' - figure') ||
+          ln.includes(' - back') || ln.includes(' - alt') ||
+          ln.includes(' - beast') || ln.includes(' - vehicle') ||
+          ln.includes(' - jet') || ln.includes(' - tank') ||
+          ln.includes('(combined)')) {
+        continue;
       }
 
-      // Also try matching on the scraped set name itself (e.g. "Landmine")
-      if (!figure && figureByName[data.name]) {
-        figure = figureByName[data.name];
-        // Find the corresponding set figure
-        mainSetFig = data.setFigures[0];
-        if (mainSetFig) matchedFigureNames.add(mainSetFig.name);
+      let dbName;
+      // Check URL override first
+      if (urlOverride && urlOverride.setName === setFig.name) {
+        dbName = urlOverride.dbName;
+      } else {
+        dbName = FIGURE_NAME_MAP[setFig.name] || setFig.name;
+      }
+
+      if (figureByName[dbName]) {
+        matchedFigures.push({ figure: figureByName[dbName], setFig });
+        matchedFigureNames.add(setFig.name);
       }
     }
 
-    if (!figure) {
-      // Log all unmatched set figure names
+    // Also try matching on the scraped set name itself (e.g. "Landmine")
+    if (matchedFigures.length === 0) {
+      // Check URL overrides first for set-level name
+      const setOverride = URL_NAME_OVERRIDES.find((o) => url.includes(o.urlMatch));
+      const setDbName = setOverride ? setOverride.dbName : data.name;
+
+      if (figureByName[setDbName]) {
+        const setFig = data.setFigures[0];
+        matchedFigures.push({ figure: figureByName[setDbName], setFig });
+        if (setFig) matchedFigureNames.add(setFig.name);
+      }
+    }
+
+    if (matchedFigures.length === 0) {
       for (const sf of data.setFigures) {
         figuresUnmatched.push(`${data.name}: ${sf.name}`);
       }
@@ -166,46 +177,78 @@ async function main() {
       continue;
     }
 
-    figuresMatched++;
-    console.log(`  MATCH: "${data.name}" -> DB figure "${figure.name}" (id: ${figure.id})`);
-
-    // --- Catalog photo ---
-    const hasCatalogPhoto = figure.photos.some((p) => p.userId === null);
-    if (!hasCatalogPhoto && mainSetFig && mainSetFig.localImage) {
-      const srcPath = path.join(SCRAPED_DIR, mainSetFig.localImage);
-      if (fs.existsSync(srcPath)) {
-        const webpFilename = `catalog_${figure.id}_${Date.now()}.webp`;
-        await processWebp(srcPath, webpFilename);
-        await prisma.photo.create({
-          data: {
-            filename: webpFilename,
-            isPrimary: true,
-            figureId: figure.id,
-            userId: null,
-          },
-        });
-        photosAdded++;
-        console.log(`    Added catalog photo: ${webpFilename}`);
+    // Log unmatched set figures
+    for (const setFig of data.setFigures) {
+      if (!matchedFigureNames.has(setFig.name)) {
+        const lowerName = setFig.name.toLowerCase();
+        if (!lowerName.includes(' - robot') && !lowerName.includes(' - figure') &&
+            !lowerName.includes(' - back') && !lowerName.includes(' - alt') &&
+            !lowerName.includes(' - beast')) {
+          figuresUnmatched.push(`${data.name}: ${setFig.name}`);
+        }
       }
     }
 
-    // --- Accessories: replace with transformerland data ---
+    // Process each matched figure
+    for (const { figure, setFig } of matchedFigures) {
+      figuresMatched++;
+      console.log(`  MATCH: "${setFig ? setFig.name : data.name}" -> DB figure "${figure.name}" (id: ${figure.id})`);
 
-    // 1. Save owned/forSale statuses from existing accessories (keyed by lowercase name)
-    const ownedMap = {};
-    for (const acc of figure.accessories) {
-      if (acc.userStatuses && acc.userStatuses.length > 0) {
-        ownedMap[acc.name.toLowerCase()] = acc.userStatuses;
+      // --- Catalog photo ---
+      const hasCatalogPhoto = figure.photos.some((p) => p.userId === null);
+      if (!hasCatalogPhoto && setFig && setFig.localImage) {
+        const srcPath = path.join(SCRAPED_DIR, setFig.localImage);
+        if (fs.existsSync(srcPath)) {
+          const webpFilename = `catalog_${figure.id}_${Date.now()}.webp`;
+          await processWebp(srcPath, webpFilename);
+          await prisma.photo.create({
+            data: {
+              filename: webpFilename,
+              isPrimary: true,
+              figureId: figure.id,
+              userId: null,
+            },
+          });
+          photosAdded++;
+          console.log(`    Added catalog photo: ${webpFilename}`);
+        }
       }
-    }
 
-    // 2. Build new accessory list from transformerland
-    const newAccessories = buildAccessoryList(data, matchedFigureNames);
+      // --- Accessories: replace with transformerland data ---
+      // Only process accessories for figures that are the "main" figure in the set
+      // (single-match sets, or the first match in multi-figure sets that have accessories)
+      // For patrols (multi-figure, no accessories), skip accessory processing
+      const isOnlyMatch = matchedFigures.length === 1;
+      const setHasAccessories = data.setAccessories.length > 0 ||
+        data.setFigures.some(sf => !matchedFigureNames.has(sf.name) &&
+          !sf.name.toLowerCase().includes(' - robot') &&
+          !sf.name.toLowerCase().includes(' - figure') &&
+          !sf.name.toLowerCase().includes(' - back'));
 
-    // 3. Skip if no accessories from transformerland (don't wipe existing data for nothing)
-    if (newAccessories.length === 0) {
-      console.log(`    No accessories from transformerland, keeping existing`);
-      continue;
+      if (!isOnlyMatch && !setHasAccessories) {
+        continue; // Skip accessory processing for patrol members with no accessories
+      }
+
+      // For multi-figure sets with accessories (bases), only process for the first match
+      if (!isOnlyMatch && matchedFigures.indexOf(matchedFigures.find(m => m.figure === figure)) > 0) {
+        continue;
+      }
+
+      // 1. Save owned/forSale statuses from existing accessories (keyed by lowercase name)
+      const ownedMap = {};
+      for (const acc of figure.accessories) {
+        if (acc.userStatuses && acc.userStatuses.length > 0) {
+          ownedMap[acc.name.toLowerCase()] = acc.userStatuses;
+        }
+      }
+
+      // 2. Build new accessory list from transformerland
+      const newAccessories = buildAccessoryList(data, matchedFigureNames);
+
+      // 3. Skip if no accessories from transformerland (don't wipe existing data for nothing)
+      if (newAccessories.length === 0) {
+        console.log(`    No accessories from transformerland, keeping existing`);
+        continue;
     }
 
     // 4. Delete old accessories (cascades UserAccessory)
@@ -257,6 +300,7 @@ async function main() {
 
     console.log(`    Added ${newAccessories.length} accessories from transformerland`);
     figuresProcessed++;
+    } // end for matchedFigures
   }
 
   console.log(`\n=== SUMMARY ===`);
