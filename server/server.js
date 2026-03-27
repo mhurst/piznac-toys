@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const fs = require('fs');
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -21,6 +22,22 @@ const photoRoutes = require('./routes/photos');
 const userRoutes = require('./routes/users');
 const collectionRoutes = require('./routes/collection');
 const priceRoutes = require('./routes/prices');
+
+// Seed catalog images into uploads volume on startup
+const catalogDir = path.join(__dirname, 'catalog-images');
+const uploadsDir = path.join(__dirname, 'uploads');
+if (fs.existsSync(catalogDir)) {
+  const files = fs.readdirSync(catalogDir);
+  let copied = 0;
+  for (const f of files) {
+    const dest = path.join(uploadsDir, f);
+    if (!fs.existsSync(dest)) {
+      fs.copyFileSync(path.join(catalogDir, f), dest);
+      copied++;
+    }
+  }
+  if (copied > 0) console.log(`Seeded ${copied} catalog images into uploads`);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -138,7 +155,6 @@ app.post('/api/sync-upload', requireAuth, requireAdmin, syncUpload.single('file'
     return res.status(400).json({ error: 'file and filename required' });
   }
   const dest = path.join(__dirname, 'uploads', req.body.filename);
-  const fs = require('fs');
   fs.renameSync(req.file.path, dest);
   res.json({ ok: true, filename: req.body.filename });
 });
