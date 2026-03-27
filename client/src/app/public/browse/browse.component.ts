@@ -90,11 +90,15 @@ import { AuthService } from '../../core/auth.service';
         <main class="figures-grid">
           @for (figure of figures; track figure.id) {
             <a [routerLink]="['/figure', figure.id]" class="figure-link">
-              <mat-card class="figure-card" [class.owned]="figure.inCollection">
+              <mat-card class="figure-card" [class.owned]="figure.inCollection" [class.partial]="!figure.inCollection && figure.ownedAccessoryCount">
                 <div class="card-image">
                   @if (figure.inCollection) {
                     <div class="owned-badge">
                       <mat-icon>check_circle</mat-icon>
+                    </div>
+                  } @else if (figure.ownedAccessoryCount) {
+                    <div class="owned-badge partial">
+                      <mat-icon>pending</mat-icon>
                     </div>
                   }
                   @if (figure.primaryPhoto) {
@@ -179,14 +183,14 @@ import { AuthService } from '../../core/auth.service';
     .figure-card.owned { opacity: 1; }
     .figure-card.owned:hover { opacity: 1; }
     .card-image {
-      height: 180px;
+      height: 220px;
       overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #e3f2fd;
+      background: #fff;
       position: relative;
-      img { width: 100%; height: 100%; object-fit: cover; }
+      img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
     }
     .owned-badge {
       position: absolute;
@@ -195,6 +199,7 @@ import { AuthService } from '../../core/auth.service';
       z-index: 2;
       mat-icon { color: #4caf50; font-size: 28px; width: 28px; height: 28px;
                  background: white; border-radius: 50%; }
+      &.partial mat-icon { color: #ff9800; }
     }
     .placeholder-image {
       display: flex;

@@ -23,9 +23,15 @@ import { AuthService } from '../../core/auth.service';
               <a [routerLink]="['/figure', figure.id]" class="figure-link">
                 <mat-card class="figure-card">
                   <div class="card-image">
-                    <div class="owned-badge">
-                      <mat-icon>check_circle</mat-icon>
-                    </div>
+                    @if (figure.inCollection) {
+                      <div class="owned-badge">
+                        <mat-icon>check_circle</mat-icon>
+                      </div>
+                    } @else if (figure.ownedAccessoryCount) {
+                      <div class="owned-badge partial">
+                        <mat-icon>pending</mat-icon>
+                      </div>
+                    }
                     @if (figure.primaryPhoto) {
                       <img [src]="'/uploads/' + figure.primaryPhoto.filename" [alt]="figure.name">
                     } @else {
@@ -204,6 +210,7 @@ import { AuthService } from '../../core/auth.service';
       z-index: 2;
       mat-icon { color: #4caf50; font-size: 28px; width: 28px; height: 28px;
                  background: white; border-radius: 50%; }
+      &.partial mat-icon { color: #ff9800; }
     }
     .figure-card mat-card-content {
       padding: 12px;

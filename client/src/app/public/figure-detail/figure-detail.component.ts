@@ -94,6 +94,8 @@ import { AuthService } from '../../core/auth.service';
               {{ figure.name }}
               @if (figure.inCollection) {
                 <mat-icon class="owned-badge">check_circle</mat-icon>
+              } @else if (ownedCount > 0) {
+                <mat-icon class="partial-badge">pending</mat-icon>
               }
             </h1>
             <div class="meta">
@@ -176,7 +178,7 @@ import { AuthService } from '../../core/auth.service';
             <div class="accessories">
               <h3>
                 Accessories
-                @if (figure.accessories.length > 0 && figure.inCollection) {
+                @if (figure.accessories.length > 0 && ownedCount > 0) {
                   ({{ ownedCount }}/{{ figure.accessories.length }})
                 } @else if (figure.accessories.length > 0) {
                   ({{ figure.accessories.length }})
@@ -196,7 +198,7 @@ import { AuthService } from '../../core/auth.service';
                       <div class="acc-info">
                         <span class="acc-name">{{ acc.name }}</span>
                         <div class="acc-actions">
-                          @if (auth.isLoggedIn && figure.inCollection) {
+                          @if (auth.isLoggedIn) {
                             <mat-checkbox [checked]="acc.owned"
                                           (change)="toggleAccessory(acc)">
                               Owned
@@ -310,6 +312,7 @@ import { AuthService } from '../../core/auth.service';
       flex: 1;
       h1 { color: #333; margin: 0 0 8px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
       .owned-badge { color: #4caf50; font-size: 28px; width: 28px; height: 28px; }
+      .partial-badge { color: #ff9800; font-size: 28px; width: 28px; height: 28px; }
     }
     .meta {
       display: flex;
@@ -514,10 +517,6 @@ export class FigureDetailComponent implements OnInit {
     const newOwned = !acc.owned;
     this.api.toggleAccessoryOwned(acc.id, newOwned).subscribe(() => {
       acc.owned = newOwned;
-      // If marking accessory owned auto-added figure to collection
-      if (newOwned) {
-        this.figure!.inCollection = true;
-      }
     });
   }
 

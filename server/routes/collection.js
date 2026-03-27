@@ -214,21 +214,6 @@ router.post('/accessories/:accessoryId', requireAuth, async (req, res) => {
     });
     if (!accessory) return res.status(404).json({ error: 'Accessory not found' });
 
-    // Auto-add figure to collection if not already there
-    await prisma.userFigure.upsert({
-      where: {
-        userId_figureId: {
-          userId: req.userId,
-          figureId: accessory.figureId,
-        },
-      },
-      update: {},
-      create: {
-        userId: req.userId,
-        figureId: accessory.figureId,
-      },
-    });
-
     const userAccessory = await prisma.userAccessory.create({
       data: {
         userId: req.userId,
