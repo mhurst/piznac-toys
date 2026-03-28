@@ -33,59 +33,68 @@ import { AuthService } from '../../core/auth.service';
             <input matInput [(ngModel)]="search" (input)="onFilterChange()" placeholder="Search figures...">
             <mat-icon matSuffix>search</mat-icon>
           </mat-form-field>
-          @if (seriesList.length > 0) {
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Series</mat-label>
-              <mat-select [(ngModel)]="selectedSeriesId" (selectionChange)="onSeriesFilterChange()">
-                <mat-option [value]="null">All Series</mat-option>
-                @for (s of seriesList; track s.id) {
-                  <mat-option [value]="s.id">{{ s.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          }
-          @if (subSeriesList.length > 0) {
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Sub-Series</mat-label>
-              <mat-select [(ngModel)]="selectedSubSeriesId" (selectionChange)="onFilterChange()">
-                <mat-option [value]="null">All Sub-Series</mat-option>
-                @for (ss of subSeriesList; track ss.id) {
-                  <mat-option [value]="ss.id">{{ ss.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          }
-          @if (auth.isLoggedIn) {
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Sort by</mat-label>
-              <mat-select [(ngModel)]="selectedSort" (selectionChange)="onFilterChange()">
-                <mat-option value="">Name</mat-option>
-                <mat-option value="owned">Owned first</mat-option>
-                <mat-option value="missing">Missing first</mat-option>
-              </mat-select>
-            </mat-form-field>
-          }
-          @if (tags.length > 0) {
-            <div class="tag-section">
-              <h4>Tags</h4>
-              <mat-chip-listbox multiple>
-                @for (tag of tags; track tag.id) {
-                  <mat-chip-option [selected]="selectedTagIds.includes(tag.id)"
-                                   (selectionChange)="toggleTag(tag.id, $event)">
-                    {{ tag.name }}
-                  </mat-chip-option>
-                }
-              </mat-chip-listbox>
-            </div>
-          }
-          @if (auth.isLoggedIn) {
-            <div class="missing-toggle">
-              <label>
-                <input type="checkbox" [(ngModel)]="showMissingOnly" (change)="onFilterChange()">
-                Show missing only
-              </label>
-            </div>
-          }
+          <button mat-stroked-button class="filter-toggle" (click)="filtersOpen = !filtersOpen">
+            <mat-icon>{{ filtersOpen ? 'expand_less' : 'tune' }}</mat-icon>
+            {{ filtersOpen ? 'Hide Filters' : 'Filters' }}
+            @if (activeFilterCount > 0) {
+              <span class="filter-count">{{ activeFilterCount }}</span>
+            }
+          </button>
+          <div class="collapsible-filters" [class.open]="filtersOpen">
+            @if (seriesList.length > 0) {
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Series</mat-label>
+                <mat-select [(ngModel)]="selectedSeriesId" (selectionChange)="onSeriesFilterChange()">
+                  <mat-option [value]="null">All Series</mat-option>
+                  @for (s of seriesList; track s.id) {
+                    <mat-option [value]="s.id">{{ s.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+            @if (subSeriesList.length > 0) {
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Sub-Series</mat-label>
+                <mat-select [(ngModel)]="selectedSubSeriesId" (selectionChange)="onFilterChange()">
+                  <mat-option [value]="null">All Sub-Series</mat-option>
+                  @for (ss of subSeriesList; track ss.id) {
+                    <mat-option [value]="ss.id">{{ ss.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+            @if (auth.isLoggedIn) {
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Sort by</mat-label>
+                <mat-select [(ngModel)]="selectedSort" (selectionChange)="onFilterChange()">
+                  <mat-option value="">Name</mat-option>
+                  <mat-option value="owned">Owned first</mat-option>
+                  <mat-option value="missing">Missing first</mat-option>
+                </mat-select>
+              </mat-form-field>
+            }
+            @if (tags.length > 0) {
+              <div class="tag-section">
+                <h4>Tags</h4>
+                <mat-chip-listbox multiple>
+                  @for (tag of tags; track tag.id) {
+                    <mat-chip-option [selected]="selectedTagIds.includes(tag.id)"
+                                     (selectionChange)="toggleTag(tag.id, $event)">
+                      {{ tag.name }}
+                    </mat-chip-option>
+                  }
+                </mat-chip-listbox>
+              </div>
+            }
+            @if (auth.isLoggedIn) {
+              <div class="missing-toggle">
+                <label>
+                  <input type="checkbox" [(ngModel)]="showMissingOnly" (change)="onFilterChange()">
+                  Show missing only
+                </label>
+              </div>
+            }
+          </div>
         </aside>
         <main class="figures-grid">
           @for (figure of figures; track figure.id) {
@@ -150,6 +159,13 @@ import { AuthService } from '../../core/auth.service';
     }
     .layout { display: flex; gap: 24px; }
     .filters { width: 260px; flex-shrink: 0; }
+    .filter-toggle { display: none; width: 100%; margin-bottom: 12px; }
+    .filter-count {
+      background: #1565C0; color: white; border-radius: 50%;
+      width: 20px; height: 20px; font-size: 0.75rem;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 4px;
+    }
     .full-width { width: 100%; }
     .tag-section {
       h4 { color: #555; margin: 0 0 8px; font-size: 0.85rem; text-transform: uppercase; }
@@ -222,6 +238,8 @@ import { AuthService } from '../../core/auth.service';
     @media (max-width: 768px) {
       .layout { flex-direction: column; }
       .filters { width: 100%; }
+      .filter-toggle { display: flex; align-items: center; gap: 4px; }
+      .collapsible-filters { display: none; &.open { display: block; } }
     }
   `],
 })
@@ -240,6 +258,17 @@ export class BrowseComponent implements OnInit, OnDestroy {
   selectedTagIds: number[] = [];
   showMissingOnly = false;
   selectedSort = '';
+  filtersOpen = false;
+
+  get activeFilterCount(): number {
+    let count = 0;
+    if (this.selectedSeriesId) count++;
+    if (this.selectedSubSeriesId) count++;
+    if (this.selectedTagIds.length) count++;
+    if (this.showMissingOnly) count++;
+    if (this.selectedSort) count++;
+    return count;
+  }
 
   private updating = false;
   private restoringFromUrl = false;
